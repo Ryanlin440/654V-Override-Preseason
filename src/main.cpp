@@ -69,8 +69,8 @@ pros::Distance backTopSensor(8);
 
 pros::MotorGroup arm_motor ({6, -7}, pros::v5::MotorGears::green);//2 5.5
 pros::Rotation arm_sensor(10);
-lemlib::PID arm_pid(8,0,10,0);      
-lemlib::PID arm_hold_pid(7,0,20,0); 
+lemlib::PID arm_pid(8,0,70,0);     
+lemlib::PID arm_hold_pid(7,0,50,0); 
 void moveArmTo(double target, int timeoutMs){
     arm_pid.reset();
     uint32_t start = pros::millis();
