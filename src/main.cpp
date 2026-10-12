@@ -69,8 +69,8 @@ pros::Distance backTopSensor(8);
 
 pros::MotorGroup arm_motor ({6, -7}, pros::v5::MotorGears::green);//2 5.5
 pros::Rotation arm_sensor(10);
-lemlib::PID arm_pid(8,0,70,0);     
-lemlib::PID arm_hold_pid(7,0,50,0); 
+lemlib::PID arm_pid(8,0,10,0);      
+lemlib::PID arm_hold_pid(7,0,20,0); 
 void moveArmTo(double target, int timeoutMs){
     arm_pid.reset();
     uint32_t start = pros::millis();
@@ -392,7 +392,7 @@ void R1Button(){
             // arm_hold_pid.reset();
             armNeedsDown = false;
             pressNum = 1;
-            moveArmToHold(300);
+            // moveArmToHold(300);
         }else if (pressNum==1){
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
             moveCascadeTo(660);
