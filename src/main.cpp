@@ -123,22 +123,22 @@ lemlib::OdomSensors sensors(&vertical_tracking_wheel, // vertical tracking wheel
                             &imu // inertial sensor
 );
 // lateral PID controller
-lemlib::ControllerSettings lateral_controller(20, // proportional gain (kP)
-                                              0, // integral gain (kI)
-                                              3, // derivative gain (kD)
-                                              3, // anti windup
+lemlib::ControllerSettings lateral_controller(6, // proportional gain (kP)
+                                              0.01, // integral gain (kI)
+                                              30, // derivative gain (kD)
+                                              5, // anti windup
                                               1, // small error range, in inches
                                               100, // small error range timeout, in milliseconds
                                               3, // large error range, in inches
                                               500, // large error range timeout, in milliseconds
-                                              20 // maximum acceleration (slew)
+                                              0 // maximum acceleration (slew)
 );
 
 // angular PID controller
 lemlib::ControllerSettings angular_controller(2, // proportional gain (kP)
-                                              .1, // integral gain (kI)
-                                              11, // derivative gain (kD)
-                                              6, // anti windup
+                                              .25, // integral gain (kI)
+                                              11.2, // derivative gain (kD)
+                                              8, // anti windup
                                               1, // small error range, in degrees
                                               100, // small error range timeout, in milliseconds
                                               3, // large error range, in degrees
@@ -276,7 +276,7 @@ void competition_initialize() {}
  */
 
 void autonomous() { 
-    tuningPID(); 
+    runAuton();
 }
 
 /**
@@ -296,21 +296,21 @@ void autonomous() {
 void rotationChassisPID(){
     chassis.setPose(0, 0, 0);
     chassis.turnToHeading(90, 1000);
-    pros::delay(2000);
+    pros::delay(4000);
     chassis.turnToHeading(180, 1000);
-    pros::delay(2000);
+    pros::delay(4000);
     chassis.turnToHeading(360, 1000);
-    pros::delay(2000);
+    pros::delay(4000);
 }
 
 void linearChassisPID(){
     chassis.setPose(0, 0, 0);
-    chassis.turnToPoint(24, 0, 2000);
-    pros::delay(2000);
-    chassis.turnToPoint(48, 0, 2000);
-    pros::delay(2000);
-    chassis.turnToPoint(0, 0, 2000);
-    pros::delay(2000);
+    chassis.moveToPoint(0, 24, 2000);
+    pros::delay(5000);
+    chassis.moveToPoint(0, 48, 2000);
+    pros::delay(5000);
+    chassis.moveToPoint(0, 0, 2000, {.forwards=false});
+    pros::delay(5000);
 }
 
 void opcontrol() {
@@ -381,10 +381,10 @@ void L1Button() {
                 // clamp
                 clawBool = true;
                 clawShut.set_value(true);
-                pros::delay(50);
+                pros::delay(150);
                 
                 // lift back up
-                moveArmTo(downArmDegPinAndCup, 600); 
+                moveArmTo(downArmDegPinAndCup + 20, 900); 
                 armNeedsDown = true; 
             }
         }
@@ -405,7 +405,7 @@ void L1Button() {
                 pros::delay(150); 
                 
                 // go back up
-                moveArmTo(downArmDegPinAndCup, 600); 
+                moveArmTo(downArmDegPinAndCup+50, 600); 
                 armNeedsDown = true;
             } 
             // if closed, then open the claw and lower arm to score pin
@@ -474,13 +474,13 @@ void R1Button(){
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
             //moveCascadeTo(660);
             cascade.move_velocity(0);
-            moveArmTo(650);
+            moveArmTo(800);
             
             pressNum=0;
             clawShut.set_value(false);
             clawBool=false;
             armNeedsDown = true;
-            pros::delay(100);
+            pros::delay(500);
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
             moveCascadeTo((cascade_sensor.get_position() / 100.0)+1000, 500);
             moveArmToHold(downArmDegPinAndCup);

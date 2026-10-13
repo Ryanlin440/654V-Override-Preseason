@@ -3,30 +3,81 @@
 #include "pros/llemu.hpp"
 #include "pros/motors.h"
 
+
 // ---------------------------------------------------------------------------
 // Autonomous entry point -- pick the route to run here.
-//
+// xxx
 // Everything below is local to this file, so adding a route means editing
 // this file only: write the function, then call it from runAuton().
 // ---------------------------------------------------------------------------
 
-void redRightAuton();
-
-void runAuton() { 
-    redRightAuton(); 
-}
+bool armPosition = true;
 
 // ---------------------------------------------------------------------------
 // Subsystem helpers used by the routes below
 // ---------------------------------------------------------------------------
 
-void openClaw() {}
+void openClaw() {//for scoring only
+    clawShut.set_value(false);
+    clawBool=false;
+    armNeedsDown = true;
+};
 
-void closeClaw() {}
 
-void moveArmToBack() {}
 
-void moveArmToFront() {}
+void closeClaw() {
+     pros::Task armTask([&]() {
+        while (true) {
+            if (claw_sensor.get_distance() < 70) {
+        
+                // go down
+                moveArmTo(downArmDegPinAndCupClamping, 300); 
+                
+                // clamp
+                clawBool = true;
+                clawShut.set_value(true);
+                pros::delay(150);
+                
+                // lift back up
+                moveArmTo(downArmDegPinAndCup, 600); 
+                armNeedsDown = true; 
+                break;
+            }
+            pros::delay(50);
+            }
+        });
+    
+}
+
+void moveArmToBack() {
+    
+    if(armPosition == false){
+        // arm_hold_pid.reset();
+        armNeedsDown = false;
+        armPosition = true;
+        moveArmToHold(450);
+    }else if (armPosition==true){
+        cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+        cascade.move_velocity(0);
+        moveArmTo(650);
+        
+        
+        openClaw();
+    }
+     if(armNeedsDown) {
+        arm_motor.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+        arm_motor.move_velocity(0);
+     }
+};
+
+void moveArmToFront() {
+    pros::delay(100);
+    cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    moveCascadeTo((cascade_sensor.get_position() / 100.0)+1000, 500);
+    moveArmToHold(downArmDegPinAndCup);
+    moveCascadeTo(0);
+    armPosition=false;
+}
 
 // ---------------------------------------------------------------------------
 // Autonomous routes
@@ -108,4 +159,17 @@ void tuningPID(){
     chassis.turnToHeading(180, 2000);
     chassis.turnToHeading(270, 2000);
     chassis.turnToHeading(0, 2000);
+}
+
+void testing(){
+    moveArmTo(downArmDegPinAndCup);
+    closeClaw();
+    pros::delay(10000);
+    // tuningPID();
+    moveArmToBack();
+    moveArmToFront();
+}
+
+void runAuton() { 
+    testing(); 
 }

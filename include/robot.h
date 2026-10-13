@@ -33,7 +33,7 @@ extern pros::Distance leftSensor;
 extern pros::Distance rightSensor;
 extern pros::Distance backBottomSensor;
 extern pros::Distance backTopSensor;
-extern pros::Distance clawSensor;
+extern pros::Distance claw_sensor;
 
 
 extern pros::Imu imu;
@@ -60,8 +60,8 @@ extern lemlib::PID arm_pid;
 extern lemlib::PID arm_hold_pid;
 void moveArmTo(double target, int timeoutMs = 1500);
 void moveArmToHold(double target, int timeoutMs = 1500);
-inline constexpr double downArmDegPinAndCup = 120;
-inline constexpr double downArmDegPinAndCupClamping = 20;
+inline constexpr double downArmDegPinAndCup = 85;
+inline constexpr double downArmDegPinAndCupClamping = 0;
 inline constexpr double downArmDegJustPin = 0;
 inline constexpr double allianceGoalWithNothing = 5;
 inline constexpr double normalAllianceGoal = 5;
@@ -70,6 +70,9 @@ inline constexpr double normalAllianceGoal = 5;
 
 extern pros::adi::DigitalOut clawShut;
 extern bool flipBool;
+extern bool clawBool;
+extern bool armNeedsDown;
+extern bool armPosition;
 extern pros::adi::DigitalOut leftToggle;
 extern pros::adi::DigitalOut rightToggle;
 
@@ -87,10 +90,17 @@ void frictiontest();
 void torquetest();
 void tuningPID();
 
-
-
+void moveArmToFront();
+void moveArmToBack();
 
 void L1Button();
 void L2Button();
 void R1Button();
 void toggleMech();
+
+
+void rotationChassisPID();
+void linearChassisPID();
+
+void closeClaw();
+void openClaw();
