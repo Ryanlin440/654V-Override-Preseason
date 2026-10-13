@@ -413,8 +413,25 @@ void L1Button() {
                 moveArmTo(0, 600);
                 clawBool = false;
                 clawShut.set_value(false);
+
+                // get starting motor encoder position
+                double startPosition = left_motors.get_position(); 
+                uint32_t waitStart = pros::millis();
+                
+                // loop until back away
+                while (true) {
+                    double currentPosition = left_motors.get_position();
+                    double degreesMoved = std::abs(currentPosition - startPosition);
+                    
+                    // move arm back up if moved back or timeout
+                    if (degreesMoved > 150.0 || pros::millis() - waitStart > 2000) {
+                        break;
+                    }
+                    
+                    pros::delay(10); 
+                }
                 armNeedsDown = true;
-                pros::delay(500);
+                
                 moveArmTo(downArmDegPinAndCup, 600);
             }
         }
