@@ -408,12 +408,14 @@ void L1Button() {
                 moveArmTo(downArmDegPinAndCup, 600); 
                 armNeedsDown = true;
             } 
-            // if closed, then open the claw
+            // if closed, then open the claw and lower arm to score pin
             else {
+                moveArmTo(0, 600);
                 clawBool = false;
                 clawShut.set_value(false);
-                moveArmTo(downArmDegPinAndCup, 600); 
                 armNeedsDown = true;
+                pros::delay(500);
+                moveArmTo(downArmDegPinAndCup, 600);
             }
         }
     }
@@ -421,18 +423,22 @@ void L1Button() {
     // Save button state for next loop
     l1WasPressed = l1CurrentlyPressed;
 }
-void L2Button(){
-    if(clawBool==false){
-        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_L2)){//maybe switch the order of these two?
-            moveArmTo(downArmDegJustPin);
-            armNeedsDown = true; // go back to PinAndCup when L2 is released
-        }
-    }else if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)){//claw bool == true
+
+void L2Button() {
+    if (clawBool == true && controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) {
+        moveArmTo(downArmDegJustPin, 600);
+
         clawShut.set_value(false);
-        pros::delay(200);
+        pros::delay(75);
+        
         clawShut.set_value(true);
+        pros::delay(150);
+        
+        moveArmTo(downArmDegPinAndCup, 600);
+        armNeedsDown = true; 
     }
-};
+}
+
 void R1Button(){
     if(pressNum==1){
         // moveArmToHold(300);
