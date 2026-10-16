@@ -66,8 +66,8 @@ inline constexpr double downArmDegJustPin = 0;
 inline constexpr double allianceGoalWithNothing = 5;
 inline constexpr double normalAllianceGoal = 5;
 
-inline constexpr double cascadeRestHeight = 525.0;     // CHANGE THIS: The higher hover height
-inline constexpr double cascadeClampingHeight = 0.0;   // CHANGE THIS: The bottom height for grabbing
+inline constexpr double cascadeRestHeight = 490.0;     // CHANGE THIS: The higher hover height
+inline constexpr double cascadeClampingHeight = 0.0;   
 
 
 
@@ -84,8 +84,11 @@ extern pros::adi::DigitalOut rightToggle;
 extern pros::Controller controller;
 
 // -------------------------------------------------------- autonomous (autons.cpp)
-/// Runs the selected autonomous route. Pick which one inside src/autons.cpp.
+/// Runs the route picked with autonSelector(). Routes are listed in src/autons.cpp.
 void runAuton();
+/// Controller auton picker: Left/Right to choose, X to lock in. initialize() waits on it.
+void autonSelector();
+extern bool pickingAuton;
 
 // Tuning routines, callable from opcontrol() for testing.
 void darwin_test();
@@ -105,5 +108,5 @@ void toggleMech();
 void rotationChassisPID();
 void linearChassisPID();
 
-void closeClaw();
+void closeClaw(int timeoutMs = 3000);
 void openClaw();

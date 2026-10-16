@@ -38,7 +38,7 @@ lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_rotation_sensor, lem
 
 pros::MotorGroup cascade ({1, -2}, pros::v5::MotorGears::blue);//2 11w
 pros::Rotation cascade_sensor(-3);
-lemlib::PID cascade_pid(5,0,15,0);
+lemlib::PID cascade_pid(5,0,20,0);
 
 void moveCascadeTo(double target, int timeoutMs) {
     cascade_pid.reset();
@@ -263,7 +263,7 @@ void initialize() {
                 pros::delay(40);
                 continue;
             }
-            controller.print(2, 0, "%.2f", chassis.getPose().theta);
+            if (!pickingAuton) controller.print(2, 0, "%.2f", chassis.getPose().theta);
             pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
             pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
             pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
@@ -277,6 +277,7 @@ void initialize() {
         }
     });
     pros::Task armTask([&]() {
+        while (pickingAuton) pros::delay(20); // driver buttons do nothing until X
         while (true) {
             L1Button();
 
@@ -288,6 +289,13 @@ void initialize() {
             pros::delay(50);
             }
         });
+
+    autonSelector(); // waits here until X is pressed
+    // No competition switch or field: run the picked route now, then PROS
+    // starts opcontrol. On a switch/field, the field calls autonomous() instead.
+    if (!pros::competition::is_connected()) {
+        runAuton();
+    }
 
 }
 
@@ -373,7 +381,7 @@ void opcontrol() {
     // }
 
     moveArmTo(downArmDegPinAndCup);
-    moveCascadeTo(500, 800);
+    moveCascadeTo(cascadeRestHeight, 800);
 
     while (true) {
 
@@ -398,10 +406,10 @@ void opcontrol() {
         if (!isScoring){
             double cascadePos = cascade_sensor.get_position() / 100.0;
             
-            if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)){
+            if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)){
                 cascade.move(127); // Move Up
             }
-            else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)){
+            else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)){
                 // Only allow reverse if it is above 0
                 if (cascadePos > 2.0) {
                     cascade.move(-127);
@@ -542,7 +550,7 @@ void L1Button() {
                 isScoring = true; // Lock out manual cascade/drive buttons
                 
                 // 1. Lower both the cascade and the arm
-                moveCascadeTo(0, 300); 
+                moveCascadeTo(cascadeClampingHeight, 200); 
                 moveArmTo(downArmDegPinAndCupClamping, 300);
                 
                 // 2. Clamp the object
@@ -551,7 +559,7 @@ void L1Button() {
                 pros::delay(150);
                 
                 // 3. Lift both back to their resting heights
-                moveCascadeTo(500, 600); 
+                moveCascadeTo(cascadeRestHeight, 600); 
                 moveArmTo(downArmDegPinAndCup, 600); 
                 armNeedsDown = true; 
                 
@@ -569,7 +577,7 @@ void L1Button() {
                 isScoring = true;
                 
                 // 1. Lower both the cascade and the arm
-                moveCascadeTo(0, 600); 
+                moveCascadeTo(cascadeClampingHeight, 600); 
                 moveArmTo(downArmDegPinAndCupClamping, 600);
                 
                 // 2. Clamp the object
@@ -578,7 +586,7 @@ void L1Button() {
                 pros::delay(150); 
                 
                 // 3. Lift both back to their resting heights
-                moveCascadeTo(500, 600); 
+                moveCascadeTo(cascadeRestHeight, 600); 
                 moveArmTo(downArmDegPinAndCup, 600); 
                 armNeedsDown = true;
                 
@@ -589,7 +597,7 @@ void L1Button() {
                 isScoring = true;
                 
                 // 1. Lower the cascade to the floor
-                moveCascadeTo(0, 600);
+                moveCascadeTo(cascadeClampingHeight, 600);
                 
                 // 2. Open the claw
                 clawBool = false;
@@ -603,15 +611,15 @@ void L1Button() {
                     double currentPosition = left_motors.get_position();
                     double degreesMoved = std::abs(currentPosition - startPosition);
                     
-                    // Break if backed away OR 2 seconds pass
-                    if (degreesMoved > 150.0 || pros::millis() - waitStart > 2000) {
+                    // Break if backed away OR 1 seconds pass
+                    if (degreesMoved > 150.0 || pros::millis() - waitStart > 1000) {
                         break;
                     }
                     pros::delay(10); 
                 }
                 
                 // 4. Return cascade to resting height
-                moveCascadeTo(500, 600);
+                moveCascadeTo(cascadeRestHeight, 600);
                 armNeedsDown = true;
                 
                 isScoring = false;
@@ -645,7 +653,7 @@ void L2Button() {
         isScoring = true; // Lock out R2/B buttons
         
         // 1. Lower the cascade to 0, then dip the arm to the pin height
-        moveCascadeTo(0, 600);
+        moveCascadeTo(cascadeClampingHeight, 600);
         moveArmTo(downArmDegJustPin, 600);
 
         // 2. Pop the claw open to drop the object
@@ -655,7 +663,7 @@ void L2Button() {
         pros::delay(150);
         
         // 3. Lift the cascade and the arm back to their normal resting heights
-        moveCascadeTo(500, 600);
+        moveCascadeTo(cascadeRestHeight, 600);
         moveArmTo(downArmDegPinAndCup, 600);
         armNeedsDown = true; // Tell the background loop to lock the arm here
         

@@ -25,9 +25,12 @@ void openClaw() {//for scoring only
 
 
 
-void closeClaw() {
-     pros::Task armTask([&]() {
-        while (true) {
+// Waits in the background for an object, then grabs it. Gives up after
+// timeoutMs so the task can't outlive auton and fire during driver control.
+void closeClaw(int timeoutMs) {
+     uint32_t start = pros::millis();
+     pros::Task armTask([=]() {
+        while (pros::millis() - start < (uint32_t)timeoutMs) {
             if (claw_sensor.get_distance() < 70) {
         
                 // go down
@@ -75,7 +78,7 @@ void moveArmToFront() {
     cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     moveCascadeTo((cascade_sensor.get_position() / 100.0)+1000, 500);
     moveArmToHold(downArmDegPinAndCup);
-    moveCascadeTo(0);
+    moveCascadeTo(cascadeClampingHeight);
     armPosition=false;
 }
 
@@ -85,20 +88,26 @@ void moveArmToFront() {
 
 void redRightAuton() {
     chassis.setPose(0, -62.5, 0);
-    chassis.moveToPose(16, -52.5, 56, 5000);
-    chassis.waitUntil(14);
+    //manually closing the claw
+    clawBool = true;
+    clawShut.set_value(true);
+    moveArmTo(downArmDegPinAndCup+30, 600); 
+    armNeedsDown = true; 
+
+    chassis.moveToPose(28, -50, 75, 2000, {}, false);
+    moveCascadeTo(0);
     openClaw();
-    moveArmToBack();
-    chassis.moveToPose(23.5, -60, 0, 5000);
-    chassis.waitUntil(2);
-    closeClaw();
-    chassis.moveToPoint(23.5, -56, 5000);
-    moveArmToFront();
-    chassis.waitUntil(2);
-    openClaw();
-    chassis.swingToPoint(-17.5, -29.5, lemlib::DriveSide::LEFT, 5000, {.forwards = false});
-    moveArmToBack();
-    chassis.moveToPoint(-17.5, -29.5, 5000);
+    // moveArmToBack();
+    // chassis.moveToPose(23.5, -60, 0, 5000);
+    // chassis.waitUntil(2);
+    // closeClaw();
+    // chassis.moveToPoint(23.5, -56, 5000);
+    // moveArmToFront();
+    // chassis.waitUntil(2);
+    // openClaw();
+    // chassis.swingToPoint(-17.5, -29.5, lemlib::DriveSide::LEFT, 5000, {.forwards = false});
+    // moveArmToBack();
+    // chassis.moveToPoint(-17.5, -29.5, 5000);
 }
 
 // ---------------------------------------------------------------------------
@@ -163,13 +172,70 @@ void tuningPID(){
 
 void testing(){
     moveArmTo(downArmDegPinAndCup);
-    closeClaw();
+    closeClaw(10000);
     pros::delay(10000);
     // tuningPID();
     moveArmToBack();
     moveArmToFront();
 }
 
+// ---------------------------------------------------------------------------
+// Auton selector -- shown on controller line 2. Left/Right to choose, X to
+// lock it in. initialize() waits here until X is pressed. To add a route,
+// write the function above and add a line here (keep Testing last).
+// ---------------------------------------------------------------------------
+
+struct AutonRoute {
+    const char* name;
+    void (*run)(); // nullptr = no auton, straight to driver control
+};
+
+AutonRoute autons[] = {
+    {"Driver", nullptr},
+    {"Red Right", redRightAuton},
+    {"Testing", testing},
+};
+constexpr int autonCount = sizeof(autons) / sizeof(autons[0]);
+
+int selectedAuton = 0; // starts on Driver
+bool pickingAuton = true; // true from boot so nothing runs before the picker is done
+
+void autonSelector() {
+    pickingAuton = true; // screen task stops printing to controller line 2
+    pros::delay(100);    // let its last print go through first
+
+    int shown = -1;
+    uint32_t lastPrint = 0;
+    while (true) {
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT) && selectedAuton > 0) {
+            selectedAuton--;
+        }
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT) && selectedAuton < autonCount - 1) {
+            selectedAuton++;
+        }
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
+            break;
+        }
+        // safety net on the field: if the match starts before X is pressed,
+        // lock in whatever is showing so initialize() can't block the match
+        if (pros::competition::is_connected() && !pros::competition::is_disabled()) {
+            break;
+        }
+
+        // the controller drops prints sent faster than ~50ms apart, so only
+        // print on a change, plus a slow refresh in case one got dropped
+        if (selectedAuton != shown || pros::millis() - lastPrint > 250) {
+            controller.print(2, 0, "Auton: %-12s", autons[selectedAuton].name);
+            shown = selectedAuton;
+            lastPrint = pros::millis();
+        }
+        pros::delay(20);
+    }
+
+    pros::lcd::print(6, "Auton: %s", autons[selectedAuton].name);
+    pickingAuton = false;
+}
+
 void runAuton() { 
-    testing(); 
+    if (autons[selectedAuton].run) autons[selectedAuton].run();
 }
