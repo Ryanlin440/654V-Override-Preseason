@@ -246,6 +246,9 @@ void initialize() {
     arm_motor.move_velocity(0);
     cascade.move_velocity(0);
     // arm_motor.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    clawBool = true;
+    clawShut.set_value(true);
+    toggleMechUp();
     // while (true) {
     //         // print robot location to the brain screen
     //         // pros::lcd::print(3, "Front sensor: %.2f", (double)(frontSensor.get() / 25.4));
@@ -263,10 +266,13 @@ void initialize() {
                 pros::delay(40);
                 continue;
             }
-            if (!pickingAuton) controller.print(2, 0, "%.2f", chassis.getPose().theta);
+            // LemLib's theta keeps counting past 360 (and below 0), so wrap it to 0-360 for display
+            double heading = std::fmod(chassis.getPose().theta, 360.0);
+            if (heading < 0) heading += 360.0;
+            if (!pickingAuton) controller.print(2, 0, "%.2f", heading);
             pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
             pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
-            pros::lcd::print(2, "Theta: %f", chassis.getPose().theta); // heading
+            pros::lcd::print(2, "Theta: %f", heading); // heading
             pros::lcd::print(3, "Front sensor: %.2f", (double)(frontSensor.get() / 25.4));
             pros::lcd::print(4, "Cascade Sensor: %.2f", (double)(cascade_sensor.get_position()/100.0));
             // pros::lcd::print(4, "asdl %d", count);
@@ -290,7 +296,7 @@ void initialize() {
             }
         });
 
-    autonSelector(); // waits here until X is pressed
+    autonSelector(); // 1st X: pick + set pose, 2nd X: start (no switch only)
     // No competition switch or field: run the picked route now, then PROS
     // starts opcontrol. On a switch/field, the field calls autonomous() instead.
     if (!pros::competition::is_connected()) {
@@ -406,10 +412,10 @@ void opcontrol() {
         if (!isScoring){
             double cascadePos = cascade_sensor.get_position() / 100.0;
             
-            if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)){
+            if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)){
                 cascade.move(127); // Move Up
             }
-            else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)){
+            else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)){
                 // Only allow reverse if it is above 0
                 if (cascadePos > 2.0) {
                     cascade.move(-127);
@@ -718,4 +724,10 @@ void toggleMech(){
     }
 };
 
+void toggleMechUp(){
+    toggles.set_value(true);
+};
 
+void toggleMechDown(){
+    toggles.set_value(false);
+};

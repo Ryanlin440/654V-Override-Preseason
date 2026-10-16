@@ -103,6 +103,8 @@ void L1Button();
 void L2Button();
 void R1Button();
 void toggleMech();
+void toggleMechUp();
+void toggleMechDown();
 
 
 void rotationChassisPID();

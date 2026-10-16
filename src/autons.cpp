@@ -86,20 +86,15 @@ void moveArmToFront() {
 // Autonomous routes
 // ---------------------------------------------------------------------------
 
-void redRightAuton() {
-    chassis.setPose(0, -62.5, 0);
-    //manually closing the claw
-    clawBool = true;
-    clawShut.set_value(true);
-    moveArmTo(downArmDegPinAndCup+30, 600); 
-    armNeedsDown = true; 
+void WestAuton() {
+    toggleMechDown();
+    // chassis.turnToHeading(60, 1000);
+    chassis.turnToPoint(-50, -20, 1000);
+    chassis.moveToPoint(-50, -20, 1000, {}, false);
+    moveCascadeTo(500,200);
 
-    chassis.moveToPose(28, -50, 75, 2000, {}, false);
-    moveCascadeTo(0);
-    openClaw();
-    // moveArmToBack();
-    // chassis.moveToPose(23.5, -60, 0, 5000);
-    // chassis.waitUntil(2);
+    // openClaw();
+    // chassis.moveToPose(15, -55, 0, 5000);
     // closeClaw();
     // chassis.moveToPoint(23.5, -56, 5000);
     // moveArmToFront();
@@ -110,6 +105,27 @@ void redRightAuton() {
     // chassis.moveToPoint(-17.5, -29.5, 5000);
 }
 
+void EastAuton() {
+    toggleMechDown();
+    chassis.moveToPoint(59, 0, 1000, {.forwards = false});
+    chassis.moveToPoint(63, 0, 1000, {}, false);
+    chassis.moveToPoint(59, 0, 1000, {.forwards = false});
+    chassis.moveToPoint(63, 0, 1000, {}, false);
+    chassis.turnToHeading(340, 1000);
+    chassis.moveToPoint(50, 20, 1000, {}, false);
+    moveCascadeTo(500,200);
+
+    // openClaw();
+    // chassis.moveToPose(15, -55, 0, 5000);
+    // closeClaw();
+    // chassis.moveToPoint(23.5, -56, 5000);
+    // moveArmToFront();
+    // chassis.waitUntil(2);
+    // openClaw();
+    // chassis.swingToPoint(-17.5, -29.5, lemlib::DriveSide::LEFT, 5000, {.forwards = false});
+    // moveArmToBack();
+    // chassis.moveToPoint(-17.5, -29.5, 5000);
+}
 // ---------------------------------------------------------------------------
 // Test / tuning routines
 // ---------------------------------------------------------------------------
@@ -180,30 +196,42 @@ void testing(){
 }
 
 // ---------------------------------------------------------------------------
-// Auton selector -- shown on controller line 2. Left/Right to choose, X to
-// lock it in. initialize() waits here until X is pressed. To add a route,
-// write the function above and add a line here (keep Testing last).
+// Auton selector -- shown on controller line 2. Left/Right to choose.
+//   1st X: locks in the route and sets its start pose. Odometry keeps
+//          tracking from there, so the robot can be pushed into place.
+//   2nd X: starts the route (only without a competition switch/field; on a
+//          switch/field, autonomous() starts it instead).
+// To add a route, write the function above and add a line here with its start
+// pose (keep Testing last).
 // ---------------------------------------------------------------------------
 
 struct AutonRoute {
     const char* name;
     void (*run)(); // nullptr = no auton, straight to driver control
+    float x, y, theta; // start pose set on the first X press
 };
 
 AutonRoute autons[] = {
-    {"Driver", nullptr},
-    {"Red Right", redRightAuton},
-    {"Testing", testing},
+    {"Driver", nullptr, 0, 0, 0},
+    {"East Auton", EastAuton, 62.5, 0, 270},
+    {"West Auton", WestAuton, -62.5, 0, 90},
+    {"Testing", testing, 0, 0, 0},
 };
 constexpr int autonCount = sizeof(autons) / sizeof(autons[0]);
 
 int selectedAuton = 0; // starts on Driver
 bool pickingAuton = true; // true from boot so nothing runs before the picker is done
 
+// the field has enabled the robot, so stop waiting on the controller
+static bool matchStarted() {
+    return pros::competition::is_connected() && !pros::competition::is_disabled();
+}
+
 void autonSelector() {
     pickingAuton = true; // screen task stops printing to controller line 2
     pros::delay(100);    // let its last print go through first
 
+    // ---- step 1: pick the route, first X locks it in
     int shown = -1;
     uint32_t lastPrint = 0;
     while (true) {
@@ -218,7 +246,7 @@ void autonSelector() {
         }
         // safety net on the field: if the match starts before X is pressed,
         // lock in whatever is showing so initialize() can't block the match
-        if (pros::competition::is_connected() && !pros::competition::is_disabled()) {
+        if (matchStarted()) {
             break;
         }
 
@@ -232,7 +260,26 @@ void autonSelector() {
         pros::delay(20);
     }
 
-    pros::lcd::print(6, "Auton: %s", autons[selectedAuton].name);
+    AutonRoute& route = autons[selectedAuton];
+    pros::lcd::print(6, "Auton: %s", route.name);
+
+    // ---- step 2: set the start pose, then wait for the second X to start.
+    if (route.run) {
+        chassis.setPose(route.x, route.y, route.theta);
+        if (!pros::competition::is_connected()) {
+            pros::delay(60);
+            controller.print(2, 0, "X to start    ");
+            uint32_t lastPrint = pros::millis();
+            while (!controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)) {
+                if (pros::millis() - lastPrint > 250) {
+                    controller.print(2, 0, "X to start    ");
+                    lastPrint = pros::millis();
+                }
+                pros::delay(20);
+            }
+        }
+    }
+
     pickingAuton = false;
 }
 
