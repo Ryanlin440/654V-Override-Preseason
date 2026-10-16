@@ -39,7 +39,7 @@ void closeClaw() {
                 pros::delay(150);
                 
                 // lift back up
-                moveArmTo(downArmDegPinAndCup, 600); 
+                moveArmTo(downArmDegPinAndCup+20, 600); 
                 armNeedsDown = true; 
                 break;
             }

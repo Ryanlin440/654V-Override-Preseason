@@ -54,6 +54,7 @@ void moveCascadeTo(double target, int timeoutMs) {
 
         // stop moving if the target reached or if timer run out
         if (std::abs(error) < 5.0 || pros::millis() - start > (uint32_t)timeoutMs) {
+            cascade.set_brake_mode(pros::MotorBrake::hold);
             cascade.move_velocity(0);
             break;
         }
@@ -75,7 +76,7 @@ pros::MotorGroup arm_motor ({6, -7}, pros::v5::MotorGears::green);//2 5.5
 pros::Rotation arm_sensor(10);
 lemlib::PID arm_pid(8,0,70,0);     
 lemlib::PID arm_hold_pid(7,0,50,0); 
-void moveArmTo(double target, int timeoutMs){
+/*void moveArmTo(double target, int timeoutMs){
     arm_pid.reset();
     uint32_t start = pros::millis();
     while (true) {
@@ -113,6 +114,47 @@ void moveArmToHold(double target, int timeoutMs){
         pros::delay(10);
     }
 
+}*/
+
+void moveArmTo(double target, int timeoutMs, float maxSpeed) {
+    arm_pid.reset();
+    uint32_t start = pros::millis();
+    while (true) {
+        float current_pos = arm_sensor.get_position() / 100.0; 
+        float error = target - current_pos;
+        float output = arm_pid.update(error);
+        
+        // Use maxSpeed instead of 127.0f
+        output = std::clamp(output, -maxSpeed, maxSpeed); 
+        
+        arm_motor.move(output);
+        if (std::abs(error) < 3.0 || pros::millis() - start > (uint32_t)timeoutMs) {
+            arm_motor.move(0);
+            break;
+        }
+        pros::delay(10);
+    }
+}
+
+void moveArmToHold(double target, int timeoutMs, float maxSpeed) {
+    arm_hold_pid.reset();
+    uint32_t start = pros::millis();
+    while (true) {
+        float current_pos = arm_sensor.get_position() / 100.0; 
+        float error = target - current_pos;
+        float output = arm_hold_pid.update(error);
+        
+        // Use maxSpeed instead of 127.0f
+        output = std::clamp(output, -maxSpeed, maxSpeed); 
+
+        arm_motor.move(output);
+        if (std::abs(error) < 1.0 || pros::millis() - start > (uint32_t)timeoutMs) {
+            arm_motor.set_brake_mode(pros::MotorBrake::hold);
+            arm_motor.move_velocity(0);
+            break;
+        }
+        pros::delay(10);
+    }
 }
 
 
@@ -199,6 +241,10 @@ void initialize() {
     cascade_sensor.reset_position();
     arm_sensor.reset_position();
     arm_motor.set_brake_mode(pros::MotorBrake::hold);
+    cascade.set_brake_mode(pros::MotorBrake::hold);
+
+    arm_motor.move_velocity(0);
+    cascade.move_velocity(0);
     // arm_motor.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     // while (true) {
     //         // print robot location to the brain screen
@@ -327,6 +373,7 @@ void opcontrol() {
     // }
 
     moveArmTo(downArmDegPinAndCup);
+    moveCascadeTo(500, 800);
 
     while (true) {
 
@@ -337,7 +384,7 @@ void opcontrol() {
         // move the robot
         chassis.arcade(leftY, rightX);
 
-        if (!isScoring){
+        /*if (!isScoring){
             if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)){//cascade movement
                 cascade.move(127);
             }else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)){
@@ -345,6 +392,25 @@ void opcontrol() {
                 std::cout << "Testing" << std::endl;
             }else{
                 cascade.move(0);
+            }
+        }*/
+
+        if (!isScoring){
+            double cascadePos = cascade_sensor.get_position() / 100.0;
+            
+            if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)){
+                cascade.move(127); // Move Up
+            }
+            else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)){
+                // Only allow reverse if it is above 0
+                if (cascadePos > 2.0) {
+                    cascade.move(-127);
+                } else {
+                    cascade.move(0); // Lock it at the bottom
+                }
+            }
+            else{
+                cascade.move(0); // Brake mode HOLD kicks in here
             }
         }
         
@@ -357,7 +423,7 @@ void opcontrol() {
         pros::delay(25);
     }
 }
-
+/*
 void L1Button() {
     static bool l1WasPressed = false;
     static bool autoClampedThisPress = false;
@@ -384,7 +450,7 @@ void L1Button() {
                 pros::delay(150);
                 
                 // lift back up
-                moveArmTo(downArmDegPinAndCup + 20, 900); 
+                moveArmTo(downArmDegPinAndCup + 20, 600); 
                 armNeedsDown = true; 
             }
         }
@@ -455,6 +521,147 @@ void L2Button() {
         armNeedsDown = true; 
     }
 }
+*/
+
+void L1Button() {
+    static bool l1WasPressed = false;
+    static bool autoClampedThisPress = false;
+
+    bool l1CurrentlyPressed = controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1);
+
+    // Reset auto-clamp flag on a fresh press
+    if (l1CurrentlyPressed && !l1WasPressed) {
+        autoClampedThisPress = false; 
+    }
+    
+    // Auto-Clamp (Triggers while button is held down)
+    if (l1CurrentlyPressed) {
+        if (clawBool == false && !autoClampedThisPress) {
+            if (claw_sensor.get_distance() < 50) {
+                autoClampedThisPress = true;
+                isScoring = true; // Lock out manual cascade/drive buttons
+                
+                // 1. Lower both the cascade and the arm
+                moveCascadeTo(0, 300); 
+                moveArmTo(downArmDegPinAndCupClamping, 300);
+                
+                // 2. Clamp the object
+                clawBool = true;
+                clawShut.set_value(true);
+                pros::delay(150);
+                
+                // 3. Lift both back to their resting heights
+                moveCascadeTo(500, 600); 
+                moveArmTo(downArmDegPinAndCup, 600); 
+                armNeedsDown = true; 
+                
+                isScoring = false; // Give controls back
+            }
+        }
+    }
+
+    // Manual Clamp/Release (Triggers when button is released)
+    if (!l1CurrentlyPressed && l1WasPressed) {
+        if (!autoClampedThisPress) {
+            
+            // If open: Manual Clamp
+            if (clawBool == false) {
+                isScoring = true;
+                
+                // 1. Lower both the cascade and the arm
+                moveCascadeTo(0, 600); 
+                moveArmTo(downArmDegPinAndCupClamping, 600);
+                
+                // 2. Clamp the object
+                clawBool = true;
+                clawShut.set_value(true);
+                pros::delay(150); 
+                
+                // 3. Lift both back to their resting heights
+                moveCascadeTo(500, 600); 
+                moveArmTo(downArmDegPinAndCup, 600); 
+                armNeedsDown = true;
+                
+                isScoring = false;
+            } 
+            // If closed: Manual Release (Drop object and wait for backup)
+            else {
+                isScoring = true;
+                
+                // 1. Lower the cascade to the floor
+                moveCascadeTo(0, 600);
+                
+                // 2. Open the claw
+                clawBool = false;
+                clawShut.set_value(false);
+
+                // 3. Wait for the driver to back away
+                double startPosition = left_motors.get_position(); 
+                uint32_t waitStart = pros::millis();
+                
+                while (true) {
+                    double currentPosition = left_motors.get_position();
+                    double degreesMoved = std::abs(currentPosition - startPosition);
+                    
+                    // Break if backed away OR 2 seconds pass
+                    if (degreesMoved > 150.0 || pros::millis() - waitStart > 2000) {
+                        break;
+                    }
+                    pros::delay(10); 
+                }
+                
+                // 4. Return cascade to resting height
+                moveCascadeTo(500, 600);
+                armNeedsDown = true;
+                
+                isScoring = false;
+            }
+        }
+    }
+
+    // Save button state for the next background loop
+    l1WasPressed = l1CurrentlyPressed;
+}
+/*
+void L2Button() {
+    if (clawBool == true && controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) {
+        isScoring = true; // Lock out R2/B buttons
+        
+        moveCascadeTo(0, 600);
+
+        clawShut.set_value(false);
+        pros::delay(75);
+        clawShut.set_value(true);
+        pros::delay(150);
+        
+        moveCascadeTo(500, 600);
+        
+        isScoring = false; 
+    }
+}*/
+
+void L2Button() {
+    if (clawBool == true && controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_L2)) {
+        isScoring = true; // Lock out R2/B buttons
+        
+        // 1. Lower the cascade to 0, then dip the arm to the pin height
+        moveCascadeTo(0, 600);
+        moveArmTo(downArmDegJustPin, 600);
+
+        // 2. Pop the claw open to drop the object
+        clawShut.set_value(false);
+        pros::delay(75);
+        clawShut.set_value(true);
+        pros::delay(150);
+        
+        // 3. Lift the cascade and the arm back to their normal resting heights
+        moveCascadeTo(500, 600);
+        moveArmTo(downArmDegPinAndCup, 600);
+        armNeedsDown = true; // Tell the background loop to lock the arm here
+        
+        isScoring = false; // Give manual cascade control back
+    }
+}
 
 void R1Button(){
     if(pressNum==1){
@@ -474,17 +681,17 @@ void R1Button(){
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
             //moveCascadeTo(660);
             cascade.move_velocity(0);
-            moveArmTo(800);
+            moveArmTo(800, 2000, 90.0f);
             
             pressNum=0;
             clawShut.set_value(false);
             clawBool=false;
             armNeedsDown = true;
-            pros::delay(500);
+            //pros::delay(500);
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
             moveCascadeTo((cascade_sensor.get_position() / 100.0)+1000, 500);
             moveArmToHold(downArmDegPinAndCup);
-            moveCascadeTo(0);
+            moveCascadeTo(cascadeRestHeight);
             isScoring = false;
         }
         //if(armNeedsDown) moveArmTo(downArmDegPinAndCup+50);

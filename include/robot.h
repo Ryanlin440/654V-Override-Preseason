@@ -58,13 +58,16 @@ extern pros::MotorGroup arm_motor;
 extern pros::Rotation arm_sensor;
 extern lemlib::PID arm_pid;
 extern lemlib::PID arm_hold_pid;
-void moveArmTo(double target, int timeoutMs = 1500);
-void moveArmToHold(double target, int timeoutMs = 1500);
-inline constexpr double downArmDegPinAndCup = 85;
-inline constexpr double downArmDegPinAndCupClamping = 0;
+void moveArmTo(double target, int timeoutMs = 2000, float maxSpeed = 127.0f);
+void moveArmToHold(double target, int timeoutMs = 2000, float maxSpeed = 127.0f);
+inline constexpr double downArmDegPinAndCup = 65;
+inline constexpr double downArmDegPinAndCupClamping = 20;
 inline constexpr double downArmDegJustPin = 0;
 inline constexpr double allianceGoalWithNothing = 5;
 inline constexpr double normalAllianceGoal = 5;
+
+inline constexpr double cascadeRestHeight = 525.0;     // CHANGE THIS: The higher hover height
+inline constexpr double cascadeClampingHeight = 0.0;   // CHANGE THIS: The bottom height for grabbing
 
 
 
