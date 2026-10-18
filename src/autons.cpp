@@ -17,13 +17,19 @@ bool armPosition = true;
 // Subsystem helpers used by the routes below
 // ---------------------------------------------------------------------------
 
-void openClaw() {//for scoring only
+//for scoring only
+void openClaw() {
     clawShut.set_value(false);
     clawBool=false;
-    armNeedsDown = true;
 };
 
-
+void openClawAndLiftThenPutBackFront(){
+    clawShut.set_value(false);
+    clawBool=false;
+    moveCascadeTo((cascade_sensor.get_position() / 100.0)+1000, 500);
+    moveArmToHold(downArmDegPinAndCup);
+    moveCascadeTo(cascadeRestHeight);
+}
 
 // Waits in the background for an object, then grabs it. Gives up after
 // timeoutMs so the task can't outlive auton and fire during driver control.
@@ -87,33 +93,59 @@ void moveArmToFront() {
 // ---------------------------------------------------------------------------
 
 void EastWestAuton() {
+    // Toggle flip
     toggleMechDown();
     chassis.moveToPoint(55, 0, 1000, {.forwards = false});
-    // chassis.moveToPoint(63, 0, 1000, {}, false);
-    // chassis.moveToPoint(59, 0, 1000, {.forwards = false});
-    // chassis.moveToPoint(63, 0, 1000, {}, false);
-
     
+    //Go score the preloaded pin
     chassis.turnToHeading(340, 1000);
     moveCascadeTo(500,200);
-    chassis.moveToPoint(50, 20, 1000, {}, false);
+    chassis.moveToPoint(50, 15, 1000, {}, false);
+    openClaw();
 
-    // openClaw();
+    // Get out of the way and face towards the first cup/pin
+    chassis.moveToPose(52, 10, 300, 1000, {.forwards = false});
 
-    // chassis.moveToPose(50, 10, 300, 1000, {.forwards = false});
+    // Get the first cup/pin and get it
+    chassis.moveToPoint(30, 20, 2000);
+    closeClaw();
+    
+    // Move to goal, move arm to back, and score
+    chassis.moveToPoint(40, 23, 1000, {.forwards = false});
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront();
 
-    // chassis.moveToPoint(30, 20, 5000);
-    // closeClaw();
+    // Swing to the second cup/pin and get it
+    chassis.swingToPoint(47, 30, lemlib::DriveSide::RIGHT, 5000);
+    chassis.moveToPoint(47, 42, 2000);
+    closeClaw();
 
-    // chassis.moveToPoint(50, 20, 1000, {.forwards = false});
+    // Move back to goal and score
+    chassis.moveToPoint(47, 30, 2000, {.forwards = false});
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront();
 
-    // moveArmToBack();
-    // openClaw();
+    // Swing to the third cup/pin and get it
+    chassis.swingToPoint(54, 23, lemlib::DriveSide::RIGHT, 5000);
+    chassis.moveToPoint(62, 23, 2000);
+    closeClaw();
 
-    // chassis.swingToPoint(45, 30, lemlib::DriveSide::LEFT, 5000, {.forwards = false});
-    // moveArmToFront();
-    // chassis.moveToPoint(45, 40, 5000);
-    // closeClaw();
+    // Rotate to face neutral goal and go to it backwards, move arm to back and then score it.
+    chassis.turnToHeading(20, 1000);
+    chassis.moveToPoint(50, -15, 2000, {.forwards = false}, false);
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront();
+
+    // Swing to the fourth cup/pin and get it
+    chassis.swingToPoint(54, -23, lemlib::DriveSide::RIGHT, 5000);
+    chassis.moveToPoint(62, -23, 2000);
+    closeClaw();
+
+    // Move back to goal and score
+    chassis.moveToPoint(54, -23, 2000, {.forwards = false});
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront();
+
 }
 
 void SkillsAuton() {
@@ -226,8 +258,8 @@ struct AutonRoute {
 
 AutonRoute autons[] = {
     {"Driver", nullptr, 0, 0, 0},
-    {"East Auton", EastWestAuton, 62.5, 0, 90},
-    {"West Auton", SkillsAuton, 62.5, 0, 90},
+    {"EastWest Auton", EastWestAuton, 62.5, 0, 90},
+    {"Skills Auton", SkillsAuton, 62.5, 0, 90},
     {"Testing", testing, 0, 0, 0},
 };
 constexpr int autonCount = sizeof(autons) / sizeof(autons[0]);
@@ -242,9 +274,9 @@ static bool matchStarted() {
 
 void autonSelector() {
     pickingAuton = true; // screen task stops printing to controller line 2
-    pros::delay(100);    // let its last print go through first
+    pros::delay(100); 
 
-    // ---- step 1: pick the route, first X locks it in
+    // step 1: pick the route, first X locks it in
     int shown = -1;
     uint32_t lastPrint = 0;
     while (true) {
@@ -276,7 +308,7 @@ void autonSelector() {
     AutonRoute& route = autons[selectedAuton];
     pros::lcd::print(6, "Auton: %s", route.name);
 
-    // ---- step 2: set the start pose, then wait for the second X to start.
+    // step 2: set the start pose, then wait for the second X to start.
     if (route.run) {
         chassis.setPose(route.x, route.y, route.theta);
         if (!pros::competition::is_connected()) {
