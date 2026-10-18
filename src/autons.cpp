@@ -86,34 +86,47 @@ void moveArmToFront() {
 // Autonomous routes
 // ---------------------------------------------------------------------------
 
-void WestAuton() {
+void EastWestAuton() {
     toggleMechDown();
-    // chassis.turnToHeading(60, 1000);
-    chassis.turnToPoint(-50, -20, 1000);
-    chassis.moveToPoint(-50, -20, 1000, {}, false);
+    chassis.moveToPoint(55, 0, 1000, {.forwards = false});
+    // chassis.moveToPoint(63, 0, 1000, {}, false);
+    // chassis.moveToPoint(59, 0, 1000, {.forwards = false});
+    // chassis.moveToPoint(63, 0, 1000, {}, false);
+
+    
+    chassis.turnToHeading(340, 1000);
     moveCascadeTo(500,200);
+    chassis.moveToPoint(50, 20, 1000, {}, false);
 
     // openClaw();
-    // chassis.moveToPose(15, -55, 0, 5000);
+
+    // chassis.moveToPose(50, 10, 300, 1000, {.forwards = false});
+
+    // chassis.moveToPoint(30, 20, 5000);
     // closeClaw();
-    // chassis.moveToPoint(23.5, -56, 5000);
-    // moveArmToFront();
-    // chassis.waitUntil(2);
-    // openClaw();
-    // chassis.swingToPoint(-17.5, -29.5, lemlib::DriveSide::LEFT, 5000, {.forwards = false});
+
+    // chassis.moveToPoint(50, 20, 1000, {.forwards = false});
+
     // moveArmToBack();
-    // chassis.moveToPoint(-17.5, -29.5, 5000);
+    // openClaw();
+
+    // chassis.swingToPoint(45, 30, lemlib::DriveSide::LEFT, 5000, {.forwards = false});
+    // moveArmToFront();
+    // chassis.moveToPoint(45, 40, 5000);
+    // closeClaw();
 }
 
-void EastAuton() {
+void SkillsAuton() {
     toggleMechDown();
-    chassis.moveToPoint(59, 0, 1000, {.forwards = false});
-    chassis.moveToPoint(63, 0, 1000, {}, false);
-    chassis.moveToPoint(59, 0, 1000, {.forwards = false});
-    chassis.moveToPoint(63, 0, 1000, {}, false);
+    chassis.moveToPoint(55, 0, 1000, {.forwards = false});
+    // chassis.moveToPoint(63, 0, 1000, {}, false);
+    // chassis.moveToPoint(59, 0, 1000, {.forwards = false});
+    // chassis.moveToPoint(63, 0, 1000, {}, false);
+
+    
     chassis.turnToHeading(340, 1000);
-    chassis.moveToPoint(50, 20, 1000, {}, false);
     moveCascadeTo(500,200);
+    chassis.moveToPoint(50, 20, 1000, {}, false);
 
     // openClaw();
     // chassis.moveToPose(15, -55, 0, 5000);
@@ -213,8 +226,8 @@ struct AutonRoute {
 
 AutonRoute autons[] = {
     {"Driver", nullptr, 0, 0, 0},
-    {"East Auton", EastAuton, 62.5, 0, 270},
-    {"West Auton", WestAuton, -62.5, 0, 90},
+    {"East Auton", EastWestAuton, 62.5, 0, 90},
+    {"West Auton", SkillsAuton, 62.5, 0, 90},
     {"Testing", testing, 0, 0, 0},
 };
 constexpr int autonCount = sizeof(autons) / sizeof(autons[0]);
