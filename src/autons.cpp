@@ -26,65 +26,71 @@ void openClaw() {
 void openClawAndLiftThenPutBackFront(){
     clawShut.set_value(false);
     clawBool=false;
-    moveCascadeTo((cascade_sensor.get_position() / 100.0)+1000, 500);
+    moveCascadeTo(getCascadeInches() + cascadeLiftOffset, 500);
     moveArmToHold(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight);
 }
 
 // Waits in the background for an object, then grabs it. Gives up after
 // timeoutMs so the task can't outlive auton and fire during driver control.
+// Same sequence as the L1 auto-clamp in main.cpp.
 void closeClaw(int timeoutMs) {
      uint32_t start = pros::millis();
      pros::Task armTask([=]() {
         while (pros::millis() - start < (uint32_t)timeoutMs) {
-            if (claw_sensor.get_distance() < 70) {
-        
-                // go down
-                moveArmTo(downArmDegPinAndCupClamping, 300); 
-                
-                // clamp
+            if (claw_sensor.get_distance() < 50) {
+
+                // 1. Lower both the cascade and the arm
+                moveCascadeTo(cascadeClampingHeight, 200);
+                moveArmTo(downArmDegPinAndCupClamping, 300);
+
+                // 2. Clamp the object
                 clawBool = true;
                 clawShut.set_value(true);
                 pros::delay(150);
-                
-                // lift back up
-                moveArmTo(downArmDegPinAndCup+20, 600); 
-                armNeedsDown = true; 
+
+                // 3. Lift both back to their resting heights
+                moveCascadeTo(cascadeRestHeight, 600);
+                moveArmTo(downArmDegPinAndCup, 600);
+                armNeedsDown = true;
                 break;
             }
             pros::delay(50);
             }
         });
-    
+
 }
 
+// First R1 press in driver control: swing the arm up to 450 and hold it there.
+// Safe to call early (e.g. while driving to the goal) to save time later.
+void primeArm() {
+    armNeedsDown = false;
+    moveArmToHold(450);
+}
+
+// Second R1 press in driver control: swing over to score and drop.
+// Follow with openClawAndLiftThenPutBackFront() or moveArmToFront().
+void scoreArm() {
+    cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
+    cascade.move_velocity(0);
+    moveArmTo(800, 2000, 90.0f);
+    openClaw();
+    armNeedsDown = true;
+    armPosition = true;
+}
+
+// Prime and score in one call.
 void moveArmToBack() {
-    
-    if(armPosition == false){
-        // arm_hold_pid.reset();
-        armNeedsDown = false;
-        armPosition = true;
-        moveArmToHold(450);
-    }else if (armPosition==true){
-        cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-        cascade.move_velocity(0);
-        moveArmTo(650);
-        
-        
-        openClaw();
-    }
-     if(armNeedsDown) {
-        arm_motor.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-        arm_motor.move_velocity(0);
-     }
+    primeArm();
+    scoreArm();
 };
 
 void moveArmToFront() {
     pros::delay(100);
     cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-    moveCascadeTo((cascade_sensor.get_position() / 100.0)+1000, 500);
+    moveCascadeTo(getCascadeInches() + cascadeLiftOffset, 500);
     moveArmToHold(downArmDegPinAndCup);
-    moveCascadeTo(cascadeClampingHeight);
+    moveCascadeTo(cascadeRestHeight);
     armPosition=false;
 }
 
@@ -95,11 +101,11 @@ void moveArmToFront() {
 void EastWestAuton() {
     // Toggle flip
     toggleMechDown();
-    chassis.moveToPoint(55, 0, 1000, {.forwards = false});
+    chassis.moveToPoint(55, 0, 1000, {.forwards = false});//for connor, since i don't have a wall i don't want to change this but maybe add a minimum voltage/speed to make sure it goes
     
     //Go score the preloaded pin
     chassis.turnToHeading(340, 1000);
-    moveCascadeTo(500,200);
+    moveCascadeTo(2.569,200); // was 500 deg, changed to inches. to connor, i think this maybe lower, idk figure out with air
     chassis.moveToPoint(45, 20, 1000, {}, false);
     openClaw();
 
@@ -157,7 +163,7 @@ void SkillsAuton() {
 
     
     chassis.turnToHeading(340, 1000);
-    moveCascadeTo(500,200);
+    moveCascadeTo(2.569,200); // was 500 deg
     chassis.moveToPoint(50, 20, 1000, {}, false);
 
     // openClaw();
@@ -224,10 +230,23 @@ void torquetest() {
 }
 
 void tuningPID(){
-    chassis.turnToHeading(90, 2000);
-    chassis.turnToHeading(180, 2000);
-    chassis.turnToHeading(270, 2000);
-    chassis.turnToHeading(0, 2000);
+    // chassis.turnToHeading(90, 2000);
+    // pros::delay(2000);
+    // chassis.turnToHeading(180, 2000);
+    // pros::delay(2000);
+    // chassis.turnToHeading(270, 2000);
+    // pros::delay(2000);
+    // chassis.turnToHeading(0, 2000);
+
+    chassis.moveToPoint(0,12, 2000);
+    pros::delay(4000);
+    chassis.moveToPoint(0,24, 2000);
+    pros::delay(4000);
+    chassis.moveToPoint(0,48, 2000, {.forwards=false});
+    pros::delay(4000);
+    chassis.moveToPoint(0,0, 2000);
+
+
 }
 
 // IMU scale test. Blocks opcontrol until B is pressed: only right-stick
@@ -266,7 +285,7 @@ void spinTest() {
 void testing(){
     moveArmTo(downArmDegPinAndCup);
     closeClaw(10000);
-    pros::delay(10000);
+    pros::delay(4000);
     // tuningPID();
     moveArmToBack();
     moveArmToFront();
@@ -360,6 +379,10 @@ void autonSelector() {
     pickingAuton = false;
 }
 
+bool autonRunning = false;
+
 void runAuton() { 
+    autonRunning = true; // keeps the driver button task off the arm/claw
     if (autons[selectedAuton].run) autons[selectedAuton].run();
+    autonRunning = false;
 }

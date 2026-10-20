@@ -83,10 +83,17 @@ inline constexpr double downArmDegJustPin = 0;
 inline constexpr double allianceGoalWithNothing = 5;
 inline constexpr double normalAllianceGoal = 5;
 
-inline constexpr double cascadeRestHeight = 490.0;     // CHANGE THIS: The higher hover height
+constexpr float HS_AXLE_DIAMETER = 0.25f; 
+// cascade stages multiply travel; calibrated so brain-screen inches match a ruler (8.5 in real move)
+constexpr float CASCADE_TRAVEL_SCALE = 2.355f;
+constexpr float INCHES_PER_DEGREE = (HS_AXLE_DIAMETER * 3.14159f) / 360.0f * CASCADE_TRAVEL_SCALE;
+
+// cascade heights are in inches
+inline constexpr double cascadeRestHeight = 2.517;     // CHANGE THIS: The higher hover height (was 490 deg)
 inline constexpr double cascadeClampingHeight = 0.0;   
+inline constexpr double cascadeLiftOffset = 5.137;     // extra lift before moving the arm (was 1000 deg)
 
-
+float getCascadeInches();
 
 extern pros::adi::DigitalOut clawShut;
 extern bool flipBool;
@@ -103,6 +110,8 @@ extern pros::Controller controller;
 // -------------------------------------------------------- autonomous (autons.cpp)
 /// Runs the route picked with autonSelector(). Routes are listed in src/autons.cpp.
 void runAuton();
+/// True while runAuton() is running. The driver button task in initialize() waits on it.
+extern bool autonRunning;
 /// Controller auton picker: Left/Right to choose, X to lock in. initialize() waits on it.
 void autonSelector();
 extern bool pickingAuton;
@@ -124,6 +133,8 @@ extern double spinTestPeakRate;
 
 void moveArmToFront();
 void moveArmToBack();
+void primeArm();
+void scoreArm();
 
 void L1Button();
 void L2Button();

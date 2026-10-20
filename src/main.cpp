@@ -35,27 +35,29 @@ pros::Distance rightSensor(14);
 ScaledImu imu(5, 1.0050); // scale from spinTest(): 1.0063 read ~0.15% high at 300-650 deg/s turns
 pros::Rotation vertical_rotation_sensor(-21);
 pros::Rotation horizontal_rotation_sensor(4);
-lemlib::TrackingWheel vertical_tracking_wheel(&vertical_rotation_sensor, lemlib::Omniwheel::NEW_275, -1);
+lemlib::TrackingWheel vertical_tracking_wheel(&vertical_rotation_sensor, lemlib::Omniwheel::NEW_275, -.55);
 lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_rotation_sensor, lemlib::Omniwheel::NEW_275, -1.5);
 
 pros::MotorGroup cascade ({1, -2}, pros::v5::MotorGears::blue);//2 11w
 pros::Rotation cascade_sensor(-3);
-lemlib::PID cascade_pid(5,0,20,0);
-
-void moveCascadeTo(double target, int timeoutMs) {
+lemlib::PID cascade_pid(1000,0,2000,0); // old (5,0,20) per degree, scaled to per inch
+float getCascadeInches() {
+    return (cascade_sensor.get_position() / 100.0f) * INCHES_PER_DEGREE;
+}
+void moveCascadeTo(double targetInches, int timeoutMs) {
     cascade_pid.reset();
     uint32_t start = pros::millis();
 
     while (true) {
-        float current_pos = cascade_sensor.get_position() / 100.0; 
-        float error = target - current_pos;
+        float current_pos_inches = getCascadeInches();
+        float error = targetInches - current_pos_inches;
         float output = cascade_pid.update(error);
 
         output = std::clamp(output, -127.0f, 127.0f);
         cascade.move(output);
 
         // stop moving if the target reached or if timer run out
-        if (std::abs(error) < 5.0 || pros::millis() - start > (uint32_t)timeoutMs) {
+        if (std::abs(error) < .2 || pros::millis() - start > (uint32_t)timeoutMs) {
             cascade.set_brake_mode(pros::MotorBrake::hold);
             cascade.move_velocity(0);
             break;
@@ -76,7 +78,7 @@ pros::Distance backTopSensor(8);
 
 pros::MotorGroup arm_motor ({6, -7}, pros::v5::MotorGears::green);//2 5.5
 pros::Rotation arm_sensor(10);
-lemlib::PID arm_pid(8,0,70,0);     
+lemlib::PID arm_pid(8,0,150,0);     
 lemlib::PID arm_hold_pid(7,0,50,0); 
 /*void moveArmTo(double target, int timeoutMs){
     arm_pid.reset();
@@ -130,7 +132,7 @@ void moveArmTo(double target, int timeoutMs, float maxSpeed) {
         output = std::clamp(output, -maxSpeed, maxSpeed); 
         
         arm_motor.move(output);
-        if (std::abs(error) < 3.0 || pros::millis() - start > (uint32_t)timeoutMs) {
+        if (std::abs(error) < 15.0 || pros::millis() - start > (uint32_t)timeoutMs) {
             arm_motor.move(0);
             break;
         }
@@ -150,7 +152,7 @@ void moveArmToHold(double target, int timeoutMs, float maxSpeed) {
         output = std::clamp(output, -maxSpeed, maxSpeed); 
 
         arm_motor.move(output);
-        if (std::abs(error) < 1.0 || pros::millis() - start > (uint32_t)timeoutMs) {
+        if (std::abs(error) < 15.0 || pros::millis() - start > (uint32_t)timeoutMs) {
             arm_motor.set_brake_mode(pros::MotorBrake::hold);
             arm_motor.move_velocity(0);
             break;
@@ -303,7 +305,7 @@ void initialize() {
             pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
             pros::lcd::print(2, "Theta: %f", heading); // heading
             pros::lcd::print(3, "Front sensor: %.2f", (double)(frontSensor.get() / 25.4));
-            pros::lcd::print(4, "Cascade Sensor: %.2f", (double)(cascade_sensor.get_position()/100.0));
+            pros::lcd::print(4, "Cascade (in): %.3f", (double)getCascadeInches());
             char messages[3][48];
             screenMutex.take();
             std::memcpy(messages, screenMessages, sizeof(messages));
@@ -320,6 +322,11 @@ void initialize() {
     pros::Task armTask([&]() {
         while (pickingAuton) pros::delay(20); // driver buttons do nothing until X
         while (true) {
+            // auton drives the arm itself; R1Button's arm hold would fight it
+            if (autonRunning) {
+                pros::delay(20);
+                continue;
+            }
             L1Button();
 
             L2Button();
@@ -423,6 +430,8 @@ void opcontrol() {
 
     // spinTest();
 
+    // tuningPID();
+    // pros::delay(10000);
     moveArmTo(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight, 800);
 
@@ -434,16 +443,20 @@ void opcontrol() {
 
         // move the robot
         chassis.arcade(leftY, rightX);
-
+        // if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_LEFT)){
+        //     moveCascadeTo(10);
+        // }else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)){
+        //     moveCascadeTo(0);
+        // }
         if (!isScoring){
-            double cascadePos = cascade_sensor.get_position() / 100.0;
+            double cascadePos = getCascadeInches();
             
             if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_B)){
                 cascade.move(127); // Move Up
             }
             else if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)){
                 // Only allow reverse if it is above 0
-                if (cascadePos > 2.0) {
+                if (cascadePos > 0.011) {
                     cascade.move(-127);
                 } else {
                     cascade.move(0); // Lock it at the bottom
@@ -607,7 +620,7 @@ void R1Button(){
             armNeedsDown = true;
             //pros::delay(500);
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
-            moveCascadeTo((cascade_sensor.get_position() / 100.0)+1000, 500);
+            moveCascadeTo(getCascadeInches() + cascadeLiftOffset, 500);
             moveArmToHold(downArmDegPinAndCup);
             moveCascadeTo(cascadeRestHeight);
             isScoring = false;
