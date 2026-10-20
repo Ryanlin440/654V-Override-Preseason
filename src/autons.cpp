@@ -104,27 +104,36 @@ void EastWestAuton() {
     chassis.moveToPoint(55, 0, 1000, {.forwards = false});//for connor, since i don't have a wall i don't want to change this but maybe add a minimum voltage/speed to make sure it goes
     
     //Go score the preloaded pin
-    chassis.turnToHeading(340, 1000);
+    chassis.turnToHeading(345, 1000);
+    moveArmToHold(downArmDegPinAndCup);
     moveCascadeTo(2.569,200); // was 500 deg, changed to inches. to connor, i think this maybe lower, idk figure out with air
-    chassis.moveToPoint(45, 20, 1000, {}, false);
+    chassis.moveToPoint(49, 20, 2000, {}, false);
+    chassis.turnToHeading(345, 1000);
+    moveArmToHold(0);
+    moveCascadeTo(0,1000);
     openClaw();
 
     // // Get out of the way and face towards the first cup/pin
-    // chassis.moveToPose(52, 10, 300, 1000, {.forwards = false});
+    chassis.moveToPoint(50, 10, 1000, {.forwards = false});
+    chassis.turnToHeading(300, 1000);
+    moveArmToHold(downArmDegPinAndCup);
+    moveCascadeTo(2.569,1000);
 
-    // // Get the first cup/pin and get it
-    // chassis.moveToPoint(30, 20, 2000);
-    // closeClaw();
+    // Get the first cup/pin and get it
+    chassis.moveToPoint(25, 25, 2000, {});
+    closeClaw();
+    pros::delay(1000); 
     
-    // // Move to goal, move arm to back, and score
-    // chassis.moveToPoint(40, 23, 1000, {.forwards = false});
-    // moveArmToBack();
-    // openClawAndLiftThenPutBackFront();
+    // Move to goal, move arm to back, and score
+    chassis.turnToHeading(230, 1000);
+    chassis.moveToPoint(44, 27, 2000, {.forwards = false});
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront();
 
-    // // Swing to the second cup/pin and get it
-    // chassis.swingToPoint(47, 30, lemlib::DriveSide::RIGHT, 5000);
-    // chassis.moveToPoint(47, 42, 2000);
-    // closeClaw();
+    // Swing to the second cup/pin and get it
+    chassis.swingToPoint(47, 30, lemlib::DriveSide::RIGHT, 500, {.forwards = false});
+    chassis.moveToPoint(47, 42, 2000);
+    closeClaw();
 
     // // Move back to goal and score
     // chassis.moveToPoint(47, 30, 2000, {.forwards = false});
@@ -309,8 +318,8 @@ struct AutonRoute {
 
 AutonRoute autons[] = {
     {"Driver", nullptr, 0, 0, 0},
-    {"EastWest Auton", EastWestAuton, 62.5, 0, 90},
-    {"Skills Auton", SkillsAuton, 62.5, 0, 90},
+    {"EastWest Auton", EastWestAuton, 69, 0, 90},
+    {"Skills Auton", SkillsAuton, 69, 0, 90},
     {"Testing", testing, 0, 0, 0},
 };
 constexpr int autonCount = sizeof(autons) / sizeof(autons[0]);
