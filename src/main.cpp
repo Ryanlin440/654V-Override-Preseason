@@ -13,7 +13,9 @@
 #include "robot.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdarg>
 #include <cstdio>
+#include <cstring>
 pros::MotorGroup right_motors({11, 12, -13}, pros::MotorGearset::blue); // left motors use 600 RPM cartridges
 pros::MotorGroup left_motors({-20, -19, 18}, pros::MotorGearset::blue); // right motors use 200 RPM cartridges
 // drivetrain settings
@@ -30,7 +32,7 @@ pros::Distance frontSensor(15);
 pros::Distance leftSensor(17);
 pros::Distance rightSensor(14);
 
-pros::Imu imu(5);
+ScaledImu imu(5, 1.0050); // scale from spinTest(): 1.0063 read ~0.15% high at 300-650 deg/s turns
 pros::Rotation vertical_rotation_sensor(-21);
 pros::Rotation horizontal_rotation_sensor(4);
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_rotation_sensor, lemlib::Omniwheel::NEW_275, -1);
@@ -214,6 +216,25 @@ pros::Controller controller(pros::E_CONTROLLER_MASTER);
  * When this callback is fired, it will toggle line 2 of the LCD text between
  * "I was pressed!" and nothing.
  */
+// The brain screen (LVGL) isn't thread-safe: calling pros::lcd from two tasks
+// at once corrupts it and can crash the brain (DATA ABORT in lv_obj_style.c).
+// So only the screen task in initialize() draws. Everything else calls
+// screenPrint(), which saves the text for the screen task to draw on lines 5-7.
+pros::Mutex screenMutex;
+char screenMessages[3][48] = {};
+
+void screenPrint(int line, const char* fmt, ...) {
+    if (line < 5 || line > 7) return;
+    char buf[48];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+    screenMutex.take();
+    std::strcpy(screenMessages[line - 5], buf);
+    screenMutex.give();
+}
+
 void on_center_button() {
 	static bool pressed = false;
 	pressed = !pressed;
@@ -260,6 +281,21 @@ void initialize() {
                 pros::delay(40);
                 continue;
             }
+            if (spinTestActive) {
+                double rotation = spinTestRotation;
+                double turns = std::round(std::fabs(rotation) / 360.0);
+                pros::lcd::print(0, "SPIN TEST  A=zero B=exit");
+                pros::lcd::print(1, "Rotation: %.2f", rotation);
+                pros::lcd::print(2, "Turns: %d", (int)turns);
+                if (turns > 0) {
+                    pros::lcd::print(3, "Scale: %.5f", turns * 360.0 / std::fabs(rotation));
+                } else {
+                    pros::lcd::print(3, "Scale: spin 1+ turns");
+                }
+                pros::lcd::print(4, "Peak rate: %.0f deg/s", spinTestPeakRate);
+                pros::delay(100);
+                continue;
+            }
             double heading = std::fmod(chassis.getPose().theta, 360.0);
             if (heading < 0) heading += 360.0;
             if (!pickingAuton) controller.print(2, 0, "%.2f", heading);
@@ -268,6 +304,11 @@ void initialize() {
             pros::lcd::print(2, "Theta: %f", heading); // heading
             pros::lcd::print(3, "Front sensor: %.2f", (double)(frontSensor.get() / 25.4));
             pros::lcd::print(4, "Cascade Sensor: %.2f", (double)(cascade_sensor.get_position()/100.0));
+            char messages[3][48];
+            screenMutex.take();
+            std::memcpy(messages, screenMessages, sizeof(messages));
+            screenMutex.give();
+            for (int i = 0; i < 3; i++) pros::lcd::print(5 + i, "%s", messages[i]);
             // pros::lcd::print(4, "asdl %d", count);
             // count+=2;
             // delay to save resources
@@ -379,6 +420,9 @@ void opcontrol() {
     //     arm_motor.move_velocity(0);
     // }
     */
+
+    // spinTest();
+
     moveArmTo(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight, 800);
 
@@ -548,10 +592,10 @@ void R1Button(){
             armNeedsDown = false;
             pressNum = 1;
             moveArmToHold(450);
-            pros::lcd::print(5, "priming...");
+            screenPrint(5, "priming...");
         }else if (pressNum==1){
             isScoring = true;
-            pros::lcd::print(5, "scoring...");
+            screenPrint(5, "scoring...");
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
             //moveCascadeTo(660);
             cascade.move_velocity(0);

@@ -100,51 +100,51 @@ void EastWestAuton() {
     //Go score the preloaded pin
     chassis.turnToHeading(340, 1000);
     moveCascadeTo(500,200);
-    chassis.moveToPoint(50, 15, 1000, {}, false);
+    chassis.moveToPoint(45, 20, 1000, {}, false);
     openClaw();
 
-    // Get out of the way and face towards the first cup/pin
-    chassis.moveToPose(52, 10, 300, 1000, {.forwards = false});
+    // // Get out of the way and face towards the first cup/pin
+    // chassis.moveToPose(52, 10, 300, 1000, {.forwards = false});
 
-    // Get the first cup/pin and get it
-    chassis.moveToPoint(30, 20, 2000);
-    closeClaw();
+    // // Get the first cup/pin and get it
+    // chassis.moveToPoint(30, 20, 2000);
+    // closeClaw();
     
-    // Move to goal, move arm to back, and score
-    chassis.moveToPoint(40, 23, 1000, {.forwards = false});
-    moveArmToBack();
-    openClawAndLiftThenPutBackFront();
+    // // Move to goal, move arm to back, and score
+    // chassis.moveToPoint(40, 23, 1000, {.forwards = false});
+    // moveArmToBack();
+    // openClawAndLiftThenPutBackFront();
 
-    // Swing to the second cup/pin and get it
-    chassis.swingToPoint(47, 30, lemlib::DriveSide::RIGHT, 5000);
-    chassis.moveToPoint(47, 42, 2000);
-    closeClaw();
+    // // Swing to the second cup/pin and get it
+    // chassis.swingToPoint(47, 30, lemlib::DriveSide::RIGHT, 5000);
+    // chassis.moveToPoint(47, 42, 2000);
+    // closeClaw();
 
-    // Move back to goal and score
-    chassis.moveToPoint(47, 30, 2000, {.forwards = false});
-    moveArmToBack();
-    openClawAndLiftThenPutBackFront();
+    // // Move back to goal and score
+    // chassis.moveToPoint(47, 30, 2000, {.forwards = false});
+    // moveArmToBack();
+    // openClawAndLiftThenPutBackFront();
 
-    // Swing to the third cup/pin and get it
-    chassis.swingToPoint(54, 23, lemlib::DriveSide::RIGHT, 5000);
-    chassis.moveToPoint(62, 23, 2000);
-    closeClaw();
+    // // Swing to the third cup/pin and get it
+    // chassis.swingToPoint(54, 23, lemlib::DriveSide::RIGHT, 5000);
+    // chassis.moveToPoint(62, 23, 2000);
+    // closeClaw();
 
-    // Rotate to face neutral goal and go to it backwards, move arm to back and then score it.
-    chassis.turnToHeading(20, 1000);
-    chassis.moveToPoint(50, -15, 2000, {.forwards = false}, false);
-    moveArmToBack();
-    openClawAndLiftThenPutBackFront();
+    // // Rotate to face neutral goal and go to it backwards, move arm to back and then score it.
+    // chassis.turnToHeading(20, 1000);
+    // chassis.moveToPoint(50, -15, 2000, {.forwards = false}, false);
+    // moveArmToBack();
+    // openClawAndLiftThenPutBackFront();
 
-    // Swing to the fourth cup/pin and get it
-    chassis.swingToPoint(54, -23, lemlib::DriveSide::RIGHT, 5000);
-    chassis.moveToPoint(62, -23, 2000);
-    closeClaw();
+    // // Swing to the fourth cup/pin and get it
+    // chassis.swingToPoint(54, -23, lemlib::DriveSide::RIGHT, 5000);
+    // chassis.moveToPoint(62, -23, 2000);
+    // closeClaw();
 
-    // Move back to goal and score
-    chassis.moveToPoint(54, -23, 2000, {.forwards = false});
-    moveArmToBack();
-    openClawAndLiftThenPutBackFront();
+    // // Move back to goal and score
+    // chassis.moveToPoint(54, -23, 2000, {.forwards = false});
+    // moveArmToBack();
+    // openClawAndLiftThenPutBackFront();
 
 }
 
@@ -177,13 +177,12 @@ void SkillsAuton() {
 
 void darwin_test() {
     int counter = 0;
-    int line = 0;
     chassis.setPose(0, 0, 0);
     int secondVar = 0;
     while (frontSensor.get() > 500) {
         chassis.arcade(127, 0);
         counter++;
-        pros::lcd::print(line++, "%d sec: %f", counter, chassis.getPose().y);
+        screenPrint(5, "%d sec: %f", counter, chassis.getPose().y);
         pros::delay(100);
     }
     chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
@@ -195,13 +194,13 @@ void frictiontest() {
     chassis.arcade(127, 0);
     pros::delay(500);
     chassis.arcade(0, 0);
-    pros::lcd::print(7, "Final Velocity: .4%f", vertical_rotation_sensor.get_velocity());
+    screenPrint(6, "Final Velocity: %.4f", vertical_rotation_sensor.get_velocity());
     int count = 0;
     while (vertical_rotation_sensor.get_velocity() > 1) {
         count++;
         pros::delay(50);
     }
-    pros::lcd::print(8, "Time till stop: .4%f seconds",
+    screenPrint(7, "Time till stop: %.4f seconds",
                      vertical_rotation_sensor.get_velocity() * 20); // 20 = 1000/50 or 1 second / milli
 }
 
@@ -215,7 +214,7 @@ void torquetest() {
             torqueCount -= 10;
             if (torqueCount < 0) torqueCount = 0;
         }
-        pros::lcd::print(1, "Current voltage: ", torqueCount);
+        screenPrint(5, "Current voltage: %d", torqueCount);
         if (controller.get_digital(pros::E_CONTROLLER_DIGITAL_R2)) {
             left_motors.move(torqueCount);
         } else {
@@ -229,6 +228,39 @@ void tuningPID(){
     chassis.turnToHeading(180, 2000);
     chassis.turnToHeading(270, 2000);
     chassis.turnToHeading(0, 2000);
+}
+
+// IMU scale test. Blocks opcontrol until B is pressed: only right-stick
+// turning works while it runs. Line the robot up against a wall/tile edge,
+// press A to zero, spin in place with the right stick (or by hand), and line
+// it back up after some whole number of turns. The screen task in main.cpp
+// shows the rotation and the scale factor (true degrees / IMU degrees).
+// This never prints to the brain screen itself: LVGL isn't thread-safe, and
+// printing from here and the screen task at once crashes the brain.
+bool spinTestActive = false;
+double spinTestRotation = 0;
+double spinTestPeakRate = 0; // fastest turn rate seen since the last zero, deg/s
+
+void spinTest() {
+    chassis.setBrakeMode(pros::E_MOTOR_BRAKE_COAST);
+    // Use an offset instead of tare_rotation() so LemLib's odom isn't disturbed.
+    double start = imu.get_rotation();
+    spinTestRotation = 0;
+    spinTestPeakRate = 0;
+    spinTestActive = true;
+    while (!controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)) {
+        if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)) {
+            start = imu.get_rotation();
+            spinTestPeakRate = 0;
+        }
+        chassis.arcade(0, controller.get_analog(pros::E_CONTROLLER_ANALOG_RIGHT_X));
+        spinTestRotation = imu.get_rotation() - start;
+        double rate = std::fabs(imu.get_gyro_rate().z);
+        if (std::isfinite(rate) && rate > spinTestPeakRate) spinTestPeakRate = rate;
+        pros::delay(20);
+    }
+    chassis.arcade(0, 0);
+    spinTestActive = false;
 }
 
 void testing(){
@@ -306,7 +338,7 @@ void autonSelector() {
     }
 
     AutonRoute& route = autons[selectedAuton];
-    pros::lcd::print(6, "Auton: %s", route.name);
+    screenPrint(6, "Auton: %s", route.name);
 
     // step 2: set the start pose, then wait for the second X to start.
     if (route.run) {

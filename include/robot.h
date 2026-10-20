@@ -13,6 +13,9 @@
 
 #pragma once
 
+#include <cmath>
+#include <cstdint>
+
 #include "lemlib/api.hpp"
 #include "lemlib/chassis/chassis.hpp"
 #include "lemlib/chassis/trackingWheel.hpp"
@@ -36,7 +39,21 @@ extern pros::Distance backTopSensor;
 extern pros::Distance claw_sensor;
 
 
-extern pros::Imu imu;
+// The V5 IMU under-reads turns slightly. This scales its rotation so LemLib's
+// odom (which reads the IMU through a pros::Imu*) gets true degrees. Measured
+// with spinTest(): 10 turns each way read ~3577 instead of 3600.
+class ScaledImu : public pros::Imu {
+  public:
+    ScaledImu(std::uint8_t port, double scale) : pros::Imu(port), scale(scale) {}
+    double get_rotation() const override { return pros::Imu::get_rotation() * scale; }
+    double get_heading() const override {
+        double heading = std::fmod(get_rotation(), 360.0);
+        return heading < 0 ? heading + 360.0 : heading;
+    }
+  private:
+    double scale;
+};
+extern ScaledImu imu;
 extern pros::Rotation vertical_rotation_sensor;
 extern pros::Rotation horizontal_rotation_sensor;
 extern lemlib::TrackingWheel vertical_tracking_wheel;
@@ -95,6 +112,15 @@ void darwin_test();
 void frictiontest();
 void torquetest();
 void tuningPID();
+void spinTest();
+/// Thread-safe brain screen print for lines 5-7 (the screen task draws it).
+/// Use this instead of pros::lcd::print anywhere outside the screen task.
+void screenPrint(int line, const char* fmt, ...);
+
+// Read by the screen task in main.cpp to show the spin test readout.
+extern bool spinTestActive;
+extern double spinTestRotation;
+extern double spinTestPeakRate;
 
 void moveArmToFront();
 void moveArmToBack();
