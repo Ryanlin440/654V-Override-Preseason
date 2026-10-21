@@ -612,7 +612,7 @@ void R1Button(){
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
             //moveCascadeTo(660);
             cascade.move_velocity(0);
-            moveArmTo(800, 2000, 90.0f);
+            moveArmTo(800, 1000, 90.0f);
             
             pressNum=0;
             clawShut.set_value(false);
