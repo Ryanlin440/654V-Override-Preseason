@@ -142,13 +142,13 @@ lemlib::ControllerSettings lateral_controller(6, // proportional gain (kP)
 );
 
 // angular PID controller
-lemlib::ControllerSettings angular_controller(2, // proportional gain (kP)
-                                              .25, // integral gain (kI)
-                                              11.2, // derivative gain (kD)
-                                              8, // anti windup
+lemlib::ControllerSettings angular_controller(1.6, // proportional gain (kP)
+                                              .0, // integral gain (kI)
+                                              9, // derivative gain (kD)
+                                              0, // anti windup
                                               1, // small error range, in degrees
                                               100, // small error range timeout, in milliseconds
-                                              3, // large error range, in degrees
+                                            3, // large error range, in degrees
                                               500, // large error range timeout, in milliseconds
                                               0 // maximum acceleration (slew)
 );
@@ -393,6 +393,9 @@ void opcontrol() {
 
     // tuningPID();
     // pros::delay(10000);
+
+    // tuningPID();
+    // pros::delay(1000000);
     moveArmTo(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight, 800);
 
@@ -562,7 +565,7 @@ void L2Button() {
         moveCascadeTo(cascadeClampingHeight, 600);
         moveArmTo(downArmDegJustPin, 600);
 
-        // 2. Pop the claw open to drop the object
+        // 2. Pop the claw open to drop the cup
         clawShut.set_value(false);
         pros::delay(75);
         clawShut.set_value(true);
