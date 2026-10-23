@@ -23,7 +23,20 @@ void openClaw() {
     clawBool=false;
 };
 
-void openClawAndLiftThenPutBackFront(){
+// true while moveArmToBack(true) is still swinging the arm in the background
+bool armBusy = false;
+
+// With async = true this runs in the background so chassis movements after it
+// (like turnAgainstGoal) happen at the same time. It waits for a background
+// moveArmToBack(true) to finish first so the two don't fight over the arm.
+void openClawAndLiftThenPutBackFront(bool async = false){
+    if (async) {
+        pros::Task([]() {
+            while (armBusy) pros::delay(10);
+            openClawAndLiftThenPutBackFront();
+        });
+        return;
+    }
     clawShut.set_value(false);
     clawBool=false;
     moveCascadeTo(getCascadeInches() + cascadeLiftOffset, 500);
@@ -38,11 +51,11 @@ void closeClaw(int timeoutMs) {
      uint32_t start = pros::millis();
      pros::Task armTask([=]() {
         while (pros::millis() - start < (uint32_t)timeoutMs) {
-            if (claw_sensor.get_distance() < 50) {
+            if (clawBool == false && claw_sensor.get_distance() < 50) {
 
-                // 1. Lower both the cascade and the arm
+                // 1. Lower cascade, lower arm VERY gently against gravity (30.0f)
                 moveCascadeTo(cascadeClampingHeight, 200);
-                moveArmTo(downArmDegPinAndCupClamping, 300);
+                moveArmTo(downArmDegPinAndCupClamping, 300, 30.0f);
 
                 // 2. Clamp the object
                 clawBool = true;
@@ -51,7 +64,7 @@ void closeClaw(int timeoutMs) {
 
                 // 3. Lift both back to their resting heights
                 moveCascadeTo(cascadeRestHeight, 600);
-                moveArmTo(downArmDegPinAndCup, 600);
+                moveArmTo(downArmDegPinAndCup, 600, 127.0f);
                 armNeedsDown = true;
                 break;
             }
@@ -68,8 +81,6 @@ void primeArm() {
     moveArmToHold(450);
 }
 
-// Second R1 press in driver control: swing over to score and drop.
-// Follow with openClawAndLiftThenPutBackFront() or moveArmToFront().
 void scoreArm() {
     cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     cascade.move_velocity(0);
@@ -79,8 +90,18 @@ void scoreArm() {
     armPosition = true;
 }
 
-// Prime and score in one call.
-void moveArmToBack() {
+// Prime and score in one call. With async = true the arm moves in the
+// background so chassis movements after it start right away.
+void moveArmToBack(bool async) {
+    if (async) {
+        armBusy = true;
+        pros::Task([]() {
+            primeArm();
+            scoreArm();
+            armBusy = false;
+        });
+        return;
+    }
     primeArm();
     scoreArm();
 };
@@ -94,20 +115,107 @@ void moveArmToFront() {
     armPosition=false;
 }
 
+void searchForStack(int timeoutMs) {
+    float center = chassis.getPose().theta;
+    bool clawClosed = false;
+    bool goLeft = true;
+    uint32_t start = pros::millis();
+
+    while (!clawClosed && pros::millis() - start < (uint32_t)timeoutMs) {
+        float target = goLeft ? center - 15 : center + 15;
+        chassis.turnToHeading(target, 1000, {.maxSpeed = 20});
+
+        while (chassis.isInMotion()) {
+            // Same auto-clamp as L1Button() in main.cpp
+            if (clawBool == false && claw_sensor.get_distance() < 50) {
+                chassis.cancelMotion();
+
+                // 1. Lower cascade, lower arm VERY gently against gravity (30.0f)
+                moveCascadeTo(0, 200);
+                moveArmTo(0, 300, 30.0f);
+
+                // 2. Clamp the object
+                clawBool = true;
+                clawShut.set_value(true);
+                pros::delay(150);
+
+                // 3. Lift both back to their resting heights
+                moveCascadeTo(cascadeRestHeight, 600);
+                moveArmTo(downArmDegPinAndCup, 600, 127.0f);
+                armNeedsDown = true;
+                clawClosed = true;
+                break;
+            }
+            pros::delay(10);
+        }
+
+        if (!clawClosed) goLeft = !goLeft;
+    }
+}
+
+
+// true while a turnAgainstGoal(..., true) is still turning in the background
+bool turningAgainstGoal = false;
+
+// With async = true the turn runs in the background so arm functions after it
+// happen at the same time. Call waitForTurnAgainstGoal() before the next
+// chassis movement so the two don't fight over the drive motors.
+void turnAgainstGoal(lemlib::AngularDirection direction, float targetHeading, int timeoutMs = 3500, bool async = false, int turnSpeed = 90, int backSpeed = 60) {
+    if (async) {
+        turningAgainstGoal = true;
+        pros::Task([=]() {
+            turnAgainstGoal(direction, targetHeading, timeoutMs, false, turnSpeed, backSpeed);
+            turningAgainstGoal = false;
+        });
+        return;
+    }
+
+    // +1 if the heading should go up during this turn (clockwise), -1 if down
+    int dir;
+    if (direction == lemlib::AngularDirection::CW_CLOCKWISE) dir = 1;
+    else if (direction == lemlib::AngularDirection::CCW_COUNTERCLOCKWISE) dir = -1;
+    else dir = std::remainder(targetHeading - chassis.getPose().theta, 360.0f) > 0 ? 1 : -1;
+
+    // seat firmly against the goal first: full speed straight back for 500ms
+    chassis.arcade(-127, 0);
+    pros::delay(500);
+
+    uint32_t start = pros::millis();
+    while (pros::millis() - start < (uint32_t)timeoutMs) {
+        float error = std::remainder(targetHeading - chassis.getPose().theta, 360.0f);
+        if (error * dir <= 1) break; // reached (or just passed) the target
+
+        chassis.arcade(-backSpeed, turnSpeed * dir);
+        pros::delay(10);
+    }
+    chassis.arcade(0, 0);
+}
+
+// Waits until a background turnAgainstGoal(..., true) has finished.
+void waitForTurnAgainstGoal() {
+    while (turningAgainstGoal) pros::delay(10);
+}
+
 // ---------------------------------------------------------------------------
 // Autonomous routes
 // ---------------------------------------------------------------------------
 
 void EastWestAuton() {
     // Toggle flip
+    chassis.moveToPoint(59, 0, 200, {.forwards = false});
     toggleMechDown();
-    chassis.moveToPoint(55, 0, 1000, {.forwards = false});//for connor, since i don't have a wall i don't want to change this but maybe add a minimum voltage/speed to make sure it goes
-    
+    moveArmToHold(300);
+    chassis.moveToPoint(68, 0, 200);
+    chassis.moveToPoint(59, 0, 200, {.forwards = false});
+    chassis.moveToPoint(68, 0, 200);
+
+    chassis.moveToPoint(55, 0, 1000, {.forwards = false});
+
     //Go score the preloaded pin
-    chassis.turnToHeading(345, 1000);
-    moveArmToHold(downArmDegPinAndCup);
-    moveCascadeTo(2.569,200); // was 500 deg, changed to inches. to connor, i think this maybe lower, idk figure out with air
-    chassis.moveToPoint(49, 20, 2000, {}, false);
+    chassis.turnToHeading(355, 1000);
+    moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
+    moveCascadeTo(2.569,200);
+    chassis.moveToPoint(52, 20, 2000, {}, false);
     chassis.turnToHeading(345, 1000);
     moveArmToHold(0);
     moveCascadeTo(0,1000);
@@ -117,74 +225,120 @@ void EastWestAuton() {
     chassis.moveToPoint(50, 10, 1000, {.forwards = false});
     chassis.turnToHeading(300, 1000);
     moveArmToHold(downArmDegPinAndCup);
-    moveCascadeTo(2.569,1000);
+    moveCascadeTo(cascadeRestHeight,1000);
 
     // Get the first cup/pin and get it
-    chassis.moveToPoint(25, 25, 2000, {});
-    closeClaw();
-    pros::delay(1000); 
+    chassis.moveToPoint(25, 25, 2000, {}, false);
+    searchForStack(2000);
     
     // Move to goal, move arm to back, and score
     chassis.turnToHeading(230, 1000);
-    chassis.moveToPoint(44, 27, 2000, {.forwards = false});
+    chassis.moveToPoint(44, 30, 1000, {.forwards = false});
+    turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 0, 3500, true);
     moveArmToBack();
     openClawAndLiftThenPutBackFront();
 
     // Swing to the second cup/pin and get it
-    chassis.swingToPoint(47, 30, lemlib::DriveSide::RIGHT, 500, {.forwards = false});
-    chassis.moveToPoint(47, 42, 2000);
+    chassis.moveToPoint(47, 54, 2000, {}, false);
+    searchForStack(2000);
+
+    // Move back to goal and score
+    chassis.moveToPoint(51, 38, 1000, {.forwards = false});
+    turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 90, 3500, true);
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront();
+
+    // Swing to the third cup/pin and get it
+    chassis.moveToPoint(65, 29, 2000);
+    searchForStack(2000);
+
+    // Rotate to face neutral goal and go to it backwards, move arm to back and then score it.
+    chassis.turnToHeading(20, 1000);
+    chassis.moveToPoint(53, -20, 2000, {.forwards = false}, false);
+    turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 90, 3500, true);
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront();
+
+    // Swing to the fourth cup/pin and get it
+    chassis.moveToPoint(68, -30, 2000);
     closeClaw();
 
-    // // Move back to goal and score
-    // chassis.moveToPoint(47, 30, 2000, {.forwards = false});
-    // moveArmToBack();
-    // openClawAndLiftThenPutBackFront();
-
-    // // Swing to the third cup/pin and get it
-    // chassis.swingToPoint(54, 23, lemlib::DriveSide::RIGHT, 5000);
-    // chassis.moveToPoint(62, 23, 2000);
-    // closeClaw();
-
-    // // Rotate to face neutral goal and go to it backwards, move arm to back and then score it.
-    // chassis.turnToHeading(20, 1000);
-    // chassis.moveToPoint(50, -15, 2000, {.forwards = false}, false);
-    // moveArmToBack();
-    // openClawAndLiftThenPutBackFront();
-
-    // // Swing to the fourth cup/pin and get it
-    // chassis.swingToPoint(54, -23, lemlib::DriveSide::RIGHT, 5000);
-    // chassis.moveToPoint(62, -23, 2000);
-    // closeClaw();
-
-    // // Move back to goal and score
-    // chassis.moveToPoint(54, -23, 2000, {.forwards = false});
-    // moveArmToBack();
-    // openClawAndLiftThenPutBackFront();
+    // Move back to goal and score
+    chassis.moveToPoint(54, -30, 2000, {.forwards = false});
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront();
 
 }
 
 void SkillsAuton() {
+    // Toggle flip
+    chassis.moveToPoint(59, 0, 200, {.forwards = false});
     toggleMechDown();
+    moveArmToHold(300);
+    chassis.moveToPoint(68, 0, 200);
+    chassis.moveToPoint(59, 0, 200, {.forwards = false});
+    chassis.moveToPoint(68, 0, 200);
+
     chassis.moveToPoint(55, 0, 1000, {.forwards = false});
-    // chassis.moveToPoint(63, 0, 1000, {}, false);
-    // chassis.moveToPoint(59, 0, 1000, {.forwards = false});
-    // chassis.moveToPoint(63, 0, 1000, {}, false);
 
+    //Go score the preloaded pin
+    chassis.turnToHeading(355, 1000);
+    moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
+    moveCascadeTo(2.569,200);
+    chassis.moveToPoint(52, 20, 2000, {}, false);
+    chassis.turnToHeading(345, 1000);
+    moveArmToHold(0);
+    moveCascadeTo(0,1000);
+    openClaw();
+
+    // // Get out of the way and face towards the first cup/pin
+    chassis.moveToPoint(50, 10, 1000, {.forwards = false});
+    chassis.turnToHeading(300, 1000);
+    moveArmToHold(downArmDegPinAndCup);
+    moveCascadeTo(cascadeRestHeight,1000);
+
+    // Get the first cup/pin and get it
+    chassis.moveToPoint(25, 25, 2000, {}, false);
+    searchForStack(2000);
     
-    chassis.turnToHeading(340, 1000);
-    moveCascadeTo(2.569,200); // was 500 deg
-    chassis.moveToPoint(50, 20, 1000, {}, false);
+    // Move to goal, move arm to back, and score
+    chassis.turnToHeading(230, 1000);
+    chassis.moveToPoint(44, 30, 1000, {.forwards = false});
+    turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 0, 3500, true);
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront();
 
-    // openClaw();
-    // chassis.moveToPose(15, -55, 0, 5000);
-    // closeClaw();
-    // chassis.moveToPoint(23.5, -56, 5000);
-    // moveArmToFront();
-    // chassis.waitUntil(2);
-    // openClaw();
-    // chassis.swingToPoint(-17.5, -29.5, lemlib::DriveSide::LEFT, 5000, {.forwards = false});
-    // moveArmToBack();
-    // chassis.moveToPoint(-17.5, -29.5, 5000);
+    // Swing to the second cup/pin and get it
+    chassis.moveToPoint(47, 54, 2000, {}, false);
+    searchForStack(2000);
+
+    moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
+    moveCascadeTo(2.569,200);
+
+    // CHANGE THESE. TURN TO OTHER GOAL AND DO THE THINGIE. THE THINGIE FIRST
+    chassis.turnToHeading(120, 1000);
+    chassis.moveToPoint(32, 70, 1000, {.forwards = false});
+
+    // The thingie
+
+
+    // Face to goal and move in.
+    chassis.turnToHeading(320, 1000);
+    chassis.moveToPoint(32, 73, 1000, {.forwards = false});
+
+    // Scoring just a pin
+    moveArmToHold(0);
+    moveCascadeTo(0,1000);
+    openClaw();
+
+        
+
+    // // Move in front of matchloader
+    // chassis.turnToHeading(70, 1000);
+    // chassis.moveToPoint(48, 80, 2000);
+    // chassis.turnToHeading(90, 1000);
+    // chassis.moveToPoint(65, 80, 2000);
+
 }
 // ---------------------------------------------------------------------------
 // Test / tuning routines

@@ -80,45 +80,6 @@ pros::MotorGroup arm_motor ({6, -7}, pros::v5::MotorGears::green);//2 5.5
 pros::Rotation arm_sensor(10);
 lemlib::PID arm_pid(8,0,150,0);     
 lemlib::PID arm_hold_pid(7,0,50,0); 
-/*void moveArmTo(double target, int timeoutMs){
-    arm_pid.reset();
-    uint32_t start = pros::millis();
-    while (true) {
-        float current_pos = arm_sensor.get_position() / 100.0; 
-        float error = target - current_pos;
-        float output = arm_pid.update(error);
-        output = std::clamp(output, -127.0f, 127.0f);
-        arm_motor.move(output);
-        if (std::abs(error) < 3.0 || pros::millis() - start > (uint32_t)timeoutMs) {
-            arm_motor.move(0);
-            break;
-        }
-        pros::delay(10);
-    }
-}
-void moveArmToHold(double target, int timeoutMs){
-
-    arm_hold_pid.reset();
-    uint32_t start = pros::millis();
-    while (true) {
-        float current_pos = arm_sensor.get_position() / 100.0; 
-        float error = target - current_pos;
-        float output = arm_hold_pid.update(error);
-        output = std::clamp(output, -127.0f, 127.0f); // cap arm power (move() range is -127 to 127)
-
-        arm_motor.move(output);
-
-        // give up after timeoutMs so the arm task can't get stuck here forever
-        if (std::abs(error) < 1.0 || pros::millis() - start > (uint32_t)timeoutMs) {
-            arm_motor.set_brake_mode(pros::MotorBrake::hold);
-            //arm_motor.move_voltage(0);
-            arm_motor.move_velocity(0);
-            break;
-        }
-        pros::delay(10);
-    }
-
-}*/
 
 void moveArmTo(double target, int timeoutMs, float maxSpeed) {
     arm_pid.reset();
@@ -151,7 +112,7 @@ void moveArmToHold(double target, int timeoutMs, float maxSpeed) {
         // Use maxSpeed instead of 127.0f
         output = std::clamp(output, -maxSpeed, maxSpeed); 
 
-        arm_motor.move(output);
+        arm_motor.move_velocity(output);
         if (std::abs(error) < 15.0 || pros::millis() - start > (uint32_t)timeoutMs) {
             arm_motor.set_brake_mode(pros::MotorBrake::hold);
             arm_motor.move_velocity(0);
@@ -473,106 +434,6 @@ void opcontrol() {
         pros::delay(25);
     }
 }
-/*
-void L1Button() {
-    static bool l1WasPressed = false;
-    static bool autoClampedThisPress = false;
-
-    bool l1CurrentlyPressed = controller.get_digital(pros::E_CONTROLLER_DIGITAL_L1);
-
-    // Reset auto-clamp flag on a fresh press
-    if (l1CurrentlyPressed && !l1WasPressed) {
-        autoClampedThisPress = false; 
-    }
-    
-    // Auto-Clamp (Triggers while button is held down)
-    if (l1CurrentlyPressed) {
-        if (clawBool == false && !autoClampedThisPress) {
-            if (claw_sensor.get_distance() < 50) {
-                autoClampedThisPress = true;
-                isScoring = true; // Lock out manual cascade/drive buttons
-                
-                // 1. Lower both the cascade and the arm
-                moveCascadeTo(cascadeClampingHeight, 200); 
-                moveArmTo(downArmDegPinAndCupClamping, 300);
-                
-                // 2. Clamp the object
-                clawBool = true;
-                clawShut.set_value(true);
-                pros::delay(150);
-                
-                // 3. Lift both back to their resting heights
-                moveCascadeTo(cascadeRestHeight, 600); 
-                moveArmTo(downArmDegPinAndCup, 600); 
-                armNeedsDown = true; 
-                
-                isScoring = false; // Give controls back
-            }
-        }
-    }
-
-    // Manual Clamp/Release (Triggers when button is released)
-    if (!l1CurrentlyPressed && l1WasPressed) {
-        if (!autoClampedThisPress) {
-            
-            // If open: Manual Clamp
-            if (clawBool == false) {
-                isScoring = true;
-                
-                // 1. Lower both the cascade and the arm
-                moveCascadeTo(cascadeClampingHeight, 600); 
-                moveArmTo(downArmDegPinAndCupClamping, 600);
-                
-                // 2. Clamp the object
-                clawBool = true;
-                clawShut.set_value(true);
-                pros::delay(150); 
-                
-                // 3. Lift both back to their resting heights
-                moveCascadeTo(cascadeRestHeight, 600); 
-                moveArmTo(downArmDegPinAndCup, 600); 
-                armNeedsDown = true;
-                
-                isScoring = false;
-            } 
-            // If closed: Manual Release (Drop object and wait for backup)
-            else {
-                isScoring = true;
-                
-                // 1. Lower the cascade to the floor
-                moveCascadeTo(cascadeClampingHeight, 600);
-                
-                // 2. Open the claw
-                clawBool = false;
-                clawShut.set_value(false);
-
-                // 3. Wait for the driver to back away
-                double startPosition = left_motors.get_position(); 
-                uint32_t waitStart = pros::millis();
-                
-                while (true) {
-                    double currentPosition = left_motors.get_position();
-                    double degreesMoved = std::abs(currentPosition - startPosition);
-                    
-                    // Break if backed away OR 1 seconds pass
-                    if (degreesMoved > 150.0 || pros::millis() - waitStart > 1000) {
-                        break;
-                    }
-                    pros::delay(10); 
-                }
-                
-                // 4. Return cascade to resting height
-                moveCascadeTo(cascadeRestHeight, 600);
-                armNeedsDown = true;
-                
-                isScoring = false;
-            }
-        }
-    }
-
-    // Save button state for the next background loop
-    l1WasPressed = l1CurrentlyPressed;
-}*/
 
 void L1Button() {
     static bool l1WasPressed = false;

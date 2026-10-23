@@ -132,7 +132,7 @@ extern double spinTestRotation;
 extern double spinTestPeakRate;
 
 void moveArmToFront();
-void moveArmToBack();
+void moveArmToBack(bool async = false);
 void primeArm();
 void scoreArm();
 
