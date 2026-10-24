@@ -1,38 +1,22 @@
 #include "lemlib/chassis/chassis.hpp"
 #include "main.h"
+#include "pros/rtos.hpp"
 #include "robot.h"
 #include "pros/llemu.hpp"
 #include "pros/motors.h"
 
-
-// ---------------------------------------------------------------------------
-// Autonomous entry point -- pick the route to run here.
-// xxx
-// Everything below is local to this file, so adding a route means editing
-// this file only: write the function, then call it from runAuton().
-// ---------------------------------------------------------------------------
-
 bool armPosition = true;
 
-// ---------------------------------------------------------------------------
-// Subsystem helpers used by the routes below
-// ---------------------------------------------------------------------------
 
 //for scoring only
 void openClaw() {
     clawShut.set_value(false);
     clawBool=false;
     pros::delay(500);
-    moveArmToHold(downArmDegPinAndCup);
-    moveCascadeTo(cascadeRestHeight,1000);
 };
 
-// true while moveArmToBack(true) is still swinging the arm in the background
 bool armBusy = false;
 
-// With async = true this runs in the background so chassis movements after it
-// (like turnAgainstGoal) happen at the same time. It waits for a background
-// moveArmToBack(true) to finish first so the two don't fight over the arm.
 void openClawAndLiftThenPutBackFront(bool async = false){
     if (async) {
         pros::Task([]() {
@@ -43,9 +27,8 @@ void openClawAndLiftThenPutBackFront(bool async = false){
     }
     clawShut.set_value(false);
     clawBool=false;
-    // pros::delay(3000);
-    // moveCascadeTo(getCascadeInches() + cascadeLiftOffset, 500);
-    // pros::delay(2500);
+    pros::delay(200);
+    moveCascadeTo(getCascadeInches() + cascadeLiftOffset+5, 500);
     moveArmToHold(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight);
 }
@@ -86,7 +69,7 @@ void primeArm() {
 void scoreArm() {
     cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     cascade.move_velocity(0);
-    moveArmTo(800, 2000, 70.0f);
+    moveArmTo(750, 2000, 70.0f);
     openClaw();
     armNeedsDown = true;
     armPosition = true;
@@ -116,7 +99,7 @@ void moveArmToFront() {
     armPosition=false;
 }
 
-void searchForStack(int timeoutMs, int detectRange = 150, int approachSpeed = 35) {
+void searchForStack(int timeoutMs, int detectRange = 150, int approachSpeed = 55) {
     float center = chassis.getPose().theta;
     bool clawClosed = false;
     bool goLeft = false;
@@ -124,7 +107,7 @@ void searchForStack(int timeoutMs, int detectRange = 150, int approachSpeed = 35
 
     while (!clawClosed && pros::millis() - start < (uint32_t)timeoutMs) {
         float target = goLeft ? center - 20 : center + 20;
-        chassis.turnToHeading(target, 1000, {.maxSpeed = 40});
+        chassis.turnToHeading(target, 1000, {.maxSpeed = 20});
 
         while (chassis.isInMotion()) {
             // Same auto-clamp as L1Button() in main.cpp
@@ -133,7 +116,7 @@ void searchForStack(int timeoutMs, int detectRange = 150, int approachSpeed = 35
 
                 // creep straight at the stack until it's right in the claw
                 uint32_t approachStart = pros::millis();
-                while (claw_sensor.get_distance() >= 60 && pros::millis() - approachStart < 1500) {
+                while (claw_sensor.get_distance() >= 70 && pros::millis() - approachStart < 1500) {
                     chassis.arcade(approachSpeed, 0);
                     pros::delay(10);
                 }
@@ -233,47 +216,53 @@ void EastWestAuton() {
     
 
     //Go score the preloaded pin
-    chassis.turnToPoint(50.5, 14, 2000, {});
+    chassis.turnToPoint(49, 18, 2000, {});
     moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
     moveCascadeTo(2.569,200);
-    chassis.moveToPoint(50.5, 14, 2000, {}, false);
-    // pros::delay(10000);
+    chassis.moveToPoint(47, 18, 2000, {}, false);
     moveArmToHold(0);
     moveCascadeTo(0,1000);
     openClaw();
-    // pros::delay(5000);
+    pros::delay(200);
 
     // Get out of the way and face towards the first cup/pin
-    chassis.moveToPoint(52.5, 10, 1000, {.forwards = false});
+    chassis.moveToPoint(54, 7, 1000, {.forwards = false});
     // chassis.turnToHeading(300, 1000);
     // pros::delay(5000);
-    chassis.turnToPoint(29, 21, 2000);
+    chassis.turnToPoint(30, 19, 500);
+    moveArmToHold(downArmDegPinAndCup);
+    moveCascadeTo(cascadeRestHeight,1000);
     // Get the first cup/pin and get it
-    chassis.moveToPoint(29, 21, 2000, {}, false);
+    chassis.moveToPoint(30, 19, 2000, {}, false);
     // pros::delay(10000);
     searchForStack(1500);
     
     // Move to goal, move arm to back, and score
     // chassis.turnToHeading(200, 1000, {.maxSpeed = 60});
-    chassis.turnToPoint(36, 42, 1000, {.forwards = false});//wutgyuytjuiouljrytjuiou;iythyuioujy
-    chassis.moveToPoint(36, 42, 1000, {.forwards = false});
-    chassis.moveToPoint(47, 35, 1000, {.forwards = false});
+    chassis.turnToPoint(28, 30, 500, {.forwards = false});
+    chassis.moveToPoint(28, 30, 500, {.forwards = false});
+
+    // pros::delay(100000);
+    chassis.moveToPoint(44.5, 20, 1000, {.forwards = false}, false);
     turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 0, 3500, true);
+    moveCascadeTo(0);
     moveArmToBack();
     openClawAndLiftThenPutBackFront();
-    // pros::delay(50000);
+    pros::delay(500);
 
-    // Swing to the second cup/pin and get it
-    chassis.moveToPoint(47, 47, 2000, {}, false);
-    searchForStack(2000);
-    chassis.turnToHeading(315, 1000, {.maxSpeed = 30});
+    // // Swing to the second cup/pin and get it
+    // chassis.turnToPoint(43, 44, 2000);
+    // chassis.moveToPoint(43, 44, 2000, {}, false);
+    // searchForStack(2000);
+    // // chassis.turnToHeading(315, 1000, {.maxSpeed = 30});
 
-    // Move back to goal and score
-    chassis.moveToPoint(56, 45, 1000, {.forwards = false});
-    chassis.moveToPoint(48, 30, 1000, {.forwards = false});
-    turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 90, 3500, true);
-    moveArmToBack();
-    openClawAndLiftThenPutBackFront();
+    // // Move back to goal and score
+    // // chassis.moveToPoint(56, 45, 1000, {.forwards = false});
+    // chassis.moveToPoint(55, 31, 1000, {.forwards = false});
+    // chassis.moveToPoint(51, 25, 1000, {.forwards = false});
+    // turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 90, 3500, true);
+    // moveArmToBack();
+    // openClawAndLiftThenPutBackFront();
 
     // // Swing to the third cup/pin and get it
     // chassis.moveToPoint(65, 29, 2000);
@@ -428,21 +417,21 @@ void torquetest() {
 }
 
 void tuningPID(){
-    // chassis.turnToHeading(90, 2000);
-    // pros::delay(4000);
-    // chassis.turnToHeading(180, 2000);
-    // pros::delay(4000);
-    // chassis.turnToHeading(270, 2000);
-    // pros::delay(4000);
-    // chassis.turnToHeading(0, 2000);
+    chassis.turnToHeading(90, 2000);
+    pros::delay(4000);
+    chassis.turnToHeading(180, 2000);
+    pros::delay(4000);
+    chassis.turnToHeading(270, 2000);
+    pros::delay(4000);
+    chassis.turnToHeading(0, 2000);
 
-    chassis.moveToPoint(0,12, 2000);
-    pros::delay(4000);
-    chassis.moveToPoint(0,24, 2000);
-    pros::delay(4000);
-    chassis.moveToPoint(0,48, 2000);
-    pros::delay(4000);
-    chassis.moveToPoint(0,0, 2000, {.forwards=false});
+    // chassis.moveToPoint(0,12, 2000);
+    // pros::delay(4000);
+    // chassis.moveToPoint(0,24, 2000);
+    // pros::delay(4000);
+    // chassis.moveToPoint(0,48, 2000);
+    // pros::delay(4000);
+    // chassis.moveToPoint(0,0, 2000, {.forwards=false});
 
 
 }
