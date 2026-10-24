@@ -149,3 +149,7 @@ void linearChassisPID();
 
 void closeClaw(int timeoutMs = 3000);
 void openClaw();
+
+void EastWestAuton();
+void SkillsAuton();
+void NorthSouthAuton();
