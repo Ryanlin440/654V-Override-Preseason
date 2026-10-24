@@ -233,29 +233,29 @@ void EastWestAuton() {
     
 
     //Go score the preloaded pin
-    // chassis.turnToHeading(350, 1000);
-    chassis.turnToPoint(50.5, 15.5, 2000, {});
+    chassis.turnToPoint(50.5, 14, 2000, {});
     moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
     moveCascadeTo(2.569,200);
-    chassis.moveToPoint(50.5, 15.5, 2000, {}, false);
-    pros::delay(10000);
+    chassis.moveToPoint(50.5, 14, 2000, {}, false);
+    // pros::delay(10000);
     moveArmToHold(0);
     moveCascadeTo(0,1000);
     openClaw();
     // pros::delay(5000);
 
     // Get out of the way and face towards the first cup/pin
-    chassis.moveToPoint(58, 10, 1000, {.forwards = false});
+    chassis.moveToPoint(52.5, 10, 1000, {.forwards = false});
     // chassis.turnToHeading(300, 1000);
     // pros::delay(5000);
-    chassis.turnToPoint(29, 22, 2000);
+    chassis.turnToPoint(29, 21, 2000);
     // Get the first cup/pin and get it
-    chassis.moveToPoint(29, 22, 2000, {}, false);
+    chassis.moveToPoint(29, 21, 2000, {}, false);
     // pros::delay(10000);
     searchForStack(1500);
     
     // Move to goal, move arm to back, and score
-    chassis.turnToHeading(200, 1000, {.maxSpeed = 60});
+    // chassis.turnToHeading(200, 1000, {.maxSpeed = 60});
+    chassis.turnToPoint(36, 42, 1000, {.forwards = false});//wutgyuytjuiouljrytjuiou;iythyuioujy
     chassis.moveToPoint(36, 42, 1000, {.forwards = false});
     chassis.moveToPoint(47, 35, 1000, {.forwards = false});
     turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 0, 3500, true);
@@ -428,21 +428,21 @@ void torquetest() {
 }
 
 void tuningPID(){
-    chassis.turnToHeading(90, 2000);
-    pros::delay(2000);
-    chassis.turnToHeading(180, 2000);
-    pros::delay(2000);
-    chassis.turnToHeading(270, 2000);
-    pros::delay(2000);
-    chassis.turnToHeading(0, 2000);
+    // chassis.turnToHeading(90, 2000);
+    // pros::delay(4000);
+    // chassis.turnToHeading(180, 2000);
+    // pros::delay(4000);
+    // chassis.turnToHeading(270, 2000);
+    // pros::delay(4000);
+    // chassis.turnToHeading(0, 2000);
 
-    // chassis.moveToPoint(0,12, 2000);
-    // pros::delay(4000);
-    // chassis.moveToPoint(0,24, 2000);
-    // pros::delay(4000);
-    // chassis.moveToPoint(0,48, 2000, {.forwards=false});
-    // pros::delay(4000);
-    // chassis.moveToPoint(0,0, 2000);
+    chassis.moveToPoint(0,12, 2000);
+    pros::delay(4000);
+    chassis.moveToPoint(0,24, 2000);
+    pros::delay(4000);
+    chassis.moveToPoint(0,48, 2000);
+    pros::delay(4000);
+    chassis.moveToPoint(0,0, 2000, {.forwards=false});
 
 
 }
