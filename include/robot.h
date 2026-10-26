@@ -150,6 +150,22 @@ void linearChassisPID();
 void closeClaw(int timeoutMs = 3000);
 void openClaw();
 
+/// Wall reset from the distance sensors (src/distance_reset.cpp). Uses the current odom pose to
+/// pick which wall each sensor faces, then sets x and/or y from the readings, even if they disagree
+/// with odom. Heading is left alone. Averages `samples` readings (~35 ms each), so it blocks briefly.
+/// Returns true if any axis was corrected.
+/// `heading` (degrees, 0 = +Y, clockwise) sets the heading first, e.g. distanceReset(180) at the
+/// start of opcontrol. Leave it out (NAN) to keep the current heading.
+bool distanceReset(double heading = NAN, bool resetX = true, bool resetY = true, int samples = 5);
+/// Starts a task that keeps printing the distance-sensor x/y on brain line 7 (doesn't move odom).
+void startWallEstimatePrinter();
+/// Starts a task that blends the distance sensors into LemLib's odom with a per-axis Kalman gain.
+/// Odom stays the default; the gain grows the farther the robot drives without a wall fix.
+/// Prints the gains and odom sigma on brain line 7, so don't also run startWallEstimatePrinter().
+void startPoseFusion();
+/// Set false to pause the blending (odom uncertainty still grows while paused).
+extern bool poseFusionEnabled;
+
 void EastWestAuton();
 void SkillsAuton();
 void NorthSouthAuton();

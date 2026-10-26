@@ -30,7 +30,7 @@ lemlib::Drivetrain drivetrain(&left_motors, // left motor group
 // pros::Distance backSensor(20);
 pros::Distance frontSensor(15);
 pros::Distance leftSensor(17);
-pros::Distance rightSensor(14);
+pros::Distance rightSensor(8);
 
 ScaledImu imu(5, 1.0050); // scale from spinTest(): 1.0063 read ~0.15% high at 300-650 deg/s turns
 pros::Rotation vertical_rotation_sensor(-21);
@@ -74,7 +74,7 @@ bool flipBool = false;
 pros::adi::DigitalOut toggles(8, false);
 
 pros::Distance claw_sensor(9);
-pros::Distance backTopSensor(8);
+// pros::Distance backTopSensor(8);
 
 pros::MotorGroup arm_motor ({6, -7}, pros::v5::MotorGears::green);//2 5.5
 pros::Rotation arm_sensor(10);
@@ -290,6 +290,9 @@ void initialize() {
         }
     });
 
+    startPoseFusion(); // blends distance sensors into odom; gains on line 7
+    // startWallEstimatePrinter(); // raw distance-sensor x/y on line 7 instead (turn off fusion first)
+
     pros::Task armTask([&]() {
         while (pickingAuton) pros::delay(20); // driver buttons do nothing until X
         while (true) {
@@ -349,10 +352,18 @@ void competition_initialize() {
  */
 
 void autonomous() { 
-    chassis.setPose(0, -61.5, 180);
+    distanceReset(90);
+    // chassis.setPose(0, -61.5, 180); //make sure to change this everything
+    // chassis.setPose(0, 61.5, 0);
     // runAuton();
+
+
+    //chassis.setPose( 61.5,0, 90);
     // EastWestAuton(); 
+
     // SkillsAuton();
+
+    chassis.setPose(0, -61.5, 180); //make sure to change this everything
     NorthSouthAuton();
 }
 
@@ -409,12 +420,12 @@ void opcontrol() {
 
     // tuningPID();
     // pros::delay(10000);
-
+    // distanceReset();
     // tuningPID();
     // pros::delay(1000000);
     moveArmTo(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight, 800);
-
+    // autonomous();
     while (true) {
 
         // get left y and right y positions
@@ -428,6 +439,11 @@ void opcontrol() {
         // }else if (controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)){
         //     moveCascadeTo(0);
         // }
+
+        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP)){
+            distanceReset();
+        }
+
         if (!isScoring){
             double cascadePos = getCascadeInches();
             

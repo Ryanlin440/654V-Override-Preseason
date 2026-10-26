@@ -203,7 +203,8 @@ void waitForTurnAgainstGoal() {
 void EastWestAuton() {
     // Toggle flip
     //move this back when there is wall - testing without wall
-
+    chassis.setPose(61.5,0,90);
+    distanceReset(90);
     chassis.moveToPoint(59-6, 0, 200, {.forwards = false});
     toggleMechDown();
     moveArmToHold(350);
@@ -212,39 +213,39 @@ void EastWestAuton() {
     chassis.moveToPoint(78-6, 0, 400);
 
     // chassis.setPose(63, 0, 90);
-    chassis.moveToPoint(45, 0, 2000, {.forwards = false});
+    chassis.moveToPoint(48, 0, 2000, {.forwards = false});
     
-
+    // pros::delay(100000);
     //Go score the preloaded pin
-    chassis.turnToPoint(45, 20, 2000, {});
+    chassis.turnToPoint(48, 17, 2000, {});
     moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
     moveCascadeTo(2.569,200);
-    chassis.moveToPoint(45, 20, 2000, {}, false);
+    chassis.moveToPoint(48, 17, 2000, {}, false);
     moveArmToHold(0);
     moveCascadeTo(0,1000);
     openClaw();
     pros::delay(200);
 
     // Get out of the way and face towards the first cup/pin
-    chassis.turnToPoint(45, 7, 200, {.forwards = false});
-    chassis.moveToPoint(45, 7, 800, {.forwards = false});
+    chassis.turnToPoint(48, 7, 200, {.forwards = false});
+    chassis.moveToPoint(48, 7, 800, {.forwards = false});
     // chassis.turnToHeading(300, 1000);
     // pros::delay(5000);
-    chassis.turnToPoint(27, 20, 500);
+    chassis.turnToPoint(30, 18, 500);
     moveArmToHold(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight,1000);
     // Get the first cup/pin and get it
-    chassis.moveToPoint(27, 20, 2000, {}, false);
+    chassis.moveToPoint(30, 18, 2000, {}, false);
     // pros::delay(10000);
     searchForStack(1500);
     
     // Move to goal, move arm to back, and score
     // chassis.turnToHeading(200, 1000, {.maxSpeed = 60});
-    chassis.turnToPoint(28, 30, 500, {.forwards = false});
-    chassis.moveToPoint(28, 30, 400, {.forwards = false});
+    chassis.turnToPoint(35, 30, 500, {.forwards = false});
+    chassis.moveToPoint(35, 30, 400, {.forwards = false});
 
     // pros::delay(100000);
-    chassis.moveToPoint(45, 20, 1000, {.forwards = false}, false);
+    chassis.moveToPoint(46, 25, 1000, {.forwards = false}, false);
     turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 0, 3500, true);
     moveCascadeTo(0);
     moveArmToBack();
@@ -252,12 +253,12 @@ void EastWestAuton() {
     // pros::delay(2000);
 
     // // Swing to the second cup/pin and get it
-    chassis.turnToPoint(44, 39, 2000);
-    chassis.moveToPoint(44, 39, 2000, {}, false);
+    chassis.turnToPoint(48, 39, 2000);
+    chassis.moveToPoint(48, 39, 2000, {}, false);
     searchForStack(2000);
     // // chassis.turnToHeading(315, 1000, {.maxSpeed = 30});
-    chassis.turnToPoint(44, 28, 1000, {.forwards=false});
-    chassis.moveToPoint(44, 28, 2000, {.forwards=false});
+    chassis.turnToPoint(48, 28, 1000, {.forwards=false});
+    chassis.moveToPoint(48, 28, 2000, {.forwards=false});
     pros::delay(500);
     moveArmToBack();
     openClawAndLiftThenPutBackFront(true);
@@ -304,6 +305,8 @@ void NorthSouthAuton() {
 
     // chassis.setPose(63, 0, 90);
     chassis.moveToPoint(0, -46, 2000, {.forwards = false});
+
+    
     
 
     //Go score the preloaded pin
@@ -340,7 +343,7 @@ void NorthSouthAuton() {
     pros::delay(250);
     moveArmToBack();
     openClawAndLiftThenPutBackFront(true);
-
+    distanceReset();
 
     // // Move back to goal and score
     // // chassis.moveToPoint(56, 45, 1000, {.forwards = false});
