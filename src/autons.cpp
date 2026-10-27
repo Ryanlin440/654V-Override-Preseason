@@ -217,7 +217,9 @@ void EastWestAuton() {
     
     // pros::delay(100000);
     //Go score the preloaded pin
-    chassis.turnToPoint(48, 17, 2000, {});
+
+    chassis.turnToPoint(48, 17, 2000, {});//uncommented to make faster
+
     moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
     moveCascadeTo(2.569,200);
     chassis.moveToPoint(48, 17, 2000, {}, false);
@@ -245,22 +247,25 @@ void EastWestAuton() {
     chassis.moveToPoint(35, 30, 400, {.forwards = false});
 
     // pros::delay(100000);
-    chassis.moveToPoint(46, 25, 1000, {.forwards = false}, false);
-    turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 0, 3500, true);
-    moveCascadeTo(0);
+    
+    chassis.moveToPoint(46, 25, 800, {.forwards = false}, false);
     moveArmToBack();
+    turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 0, 3500, true);
+    // moveCascadeTo(0);
+    
     openClawAndLiftThenPutBackFront(true);
     // pros::delay(2000);
 
     // // Swing to the second cup/pin and get it
-    chassis.turnToPoint(48, 39, 2000);
-    chassis.moveToPoint(48, 39, 2000, {}, false);
+    chassis.turnToPoint(48, 38, 2000);
+    chassis.moveToPoint(48, 38, 2000, {}, false);
     searchForStack(2000);
     // // chassis.turnToHeading(315, 1000, {.maxSpeed = 30});
     chassis.turnToPoint(48, 28, 1000, {.forwards=false});
     chassis.moveToPoint(48, 28, 2000, {.forwards=false});
     pros::delay(500);
     moveArmToBack();
+    //make cascade go higher here
     openClawAndLiftThenPutBackFront(true);
     // // Move back to goal and score
     // // chassis.moveToPoint(56, 45, 1000, {.forwards = false});
