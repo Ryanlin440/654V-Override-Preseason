@@ -25,8 +25,8 @@ struct SensorMount {
 
 const SensorMount mounts[] = {
     {&frontSensor, 4, 1.6, 0, "front"},//change later cause cad isn't perfect
-    // {&rightSensor, 3.75+.5, .268, 90, "right"},
-    {&leftSensor, -3.75-.2, .268, 270, "left"},
+    {&rightSensor, 3.75+1.5, .268, 90, "right"},
+    {&leftSensor, -3.75-.2-1.5, .268, 270, "left"},
 };
 
 // Reading in inches, comparing in mm cause thats what it returns
@@ -157,7 +157,6 @@ double fuseP[2] = {FUSE_P_RESET, FUSE_P_RESET};
 bool poseFusionEnabled = true;
 
 bool distanceReset(double heading, bool resetX, bool resetY, int samples) {
-    // set the heading first, so the wall each sensor faces is picked with the right angle
     if (!std::isnan(heading)) {
         lemlib::Pose now = chassis.getPose();
         chassis.setPose(now.x, now.y, heading);
@@ -178,7 +177,6 @@ bool distanceReset(double heading, bool resetX, bool resetY, int samples) {
     bool fixY = resetY && yCount > 0;
     if (!fixX && !fixY) return false;
 
-    // re-read the pose so heading/odom drift during the loop isn't lost
     lemlib::Pose now = chassis.getPose();
     chassis.setPose(fixX ? xSum / xCount : now.x, fixY ? ySum / yCount : now.y, now.theta);
     if (fixX) fuseP[0] = FUSE_P_RESET;
@@ -203,13 +201,13 @@ void startPoseFusion() {
             }
             last = pose;
 
-            double gain[2] = {-1, -1}; // last K used per axis, -1 = no update (for the screen)
+            double gain[2] = {-1, -1}; // last K used per axis, -1 
             bool turningFast = std::fabs(imu.get_gyro_rate().z) > FUSE_MAX_TURN_RATE;
             if (poseFusionEnabled && !turningFast) {
                 WallReading readings[NUM_MOUNTS];
                 int count = wallReadings(pose, readings, log);
 
-                // update: one 1D Kalman step per reading
+                // update
                 double fused[2] = {pose.x, pose.y};
                 for (int i = 0; i < count; i++) {
                     int axis = readings[i].isX ? 0 : 1;

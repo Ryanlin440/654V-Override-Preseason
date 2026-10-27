@@ -420,7 +420,7 @@ void opcontrol() {
 
     // tuningPID();
     // pros::delay(10000);
-    distanceReset(chassis.getPose().theta);
+    distanceReset();
     poseFusionEnabled=false;
     // tuningPID();
     // pros::delay(1000000);

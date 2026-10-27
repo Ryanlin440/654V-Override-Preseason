@@ -124,7 +124,7 @@ void searchForStack(int timeoutMs, double cascadeHeight = cascadeRestHeight, int
                 }
 
                 // Lower cascade, lower arm VERY gently against gravity (30.0f)
-                moveCascadeTo(0, 500);
+                moveCascadeTo(0, 1000);
                 moveArmTo(-10, 500, 60.0f);
 
                 //Clamp the object
@@ -213,7 +213,7 @@ void EastWestAuton() {
     chassis.setPose(61.5,0,90);
     distanceReset(90);
     toggleMechDown();
-    chassis.moveToPoint(59, 0, 400, {.forwards = false});
+    chassis.moveToPoint(58, 0, 400, {.forwards = false});
     chassis.moveToPoint(72, 0, 300);
     chassis.moveToPoint(59, 0, 400, {.forwards = false});
     chassis.moveToPoint(72, 0, 300);
@@ -235,12 +235,13 @@ void EastWestAuton() {
     // Get out of the way and face towards the first cup/pin
     chassis.turnToPoint(47, 10, 200, {.forwards = false});
     chassis.moveToPoint(47,10, 400, {.forwards = false});
-    chassis.turnToPoint(32, 19, 700);
+    chassis.turnToPoint(30, 19, 700);
     moveArmToHold(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight,1000);
 
     // Get the first cup/pin and get it
-    chassis.moveToPoint(32, 19, 2000);
+    chassis.moveToPoint(30, 19, 2000);
+    moveCascadeTo(cascadeRestHeight, 600); 
     searchForStack(1000, cascadeRestHeight);
     pros::delay(150);
     
@@ -248,24 +249,24 @@ void EastWestAuton() {
     // chassis.turnToHeading(200, 1000, {.maxSpeed = 60});
     chassis.turnToPoint(35, 30, 500, {.forwards = false});
     chassis.moveToPoint(35, 30, 500, {.forwards = false});
-
-    
     chassis.moveToPoint(48, 25, 800, {.forwards = false}, false);
     moveArmToBack();
     openClawAndLiftThenPutBackFront(true);
     // moveCascadeTo(res, 1000);
-    pros::delay(250);
+    // pros::delay(1250);
     
 
     // second cup/pin and get it
     chassis.turnToPoint(47, 38, 2000);
     chassis.moveToPoint(47, 38, 2000, {}, true);
+    moveCascadeTo(cascadeRestHeight, 600); 
+    distanceReset();
     pros::delay(1000);
     searchForStack(1000, 10);
 
     // // chassis.turnToHeading(315, 1000, {.maxSpeed = 30});
-    chassis.turnToPoint(47, 28, 1000, {.forwards=false});
-    chassis.moveToPoint(47, 28, 2000, {.forwards=false});
+    chassis.turnToPoint(47, 30, 1000, {.forwards=false});
+    chassis.moveToPoint(47, 30, 2000, {.forwards=false});
     pros::delay(500);
     moveArmToBack();
     //make cascade go higher here
