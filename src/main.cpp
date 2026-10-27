@@ -420,7 +420,8 @@ void opcontrol() {
 
     // tuningPID();
     // pros::delay(10000);
-    // distanceReset();
+    distanceReset(chassis.getPose().theta);
+    poseFusionEnabled=false;
     // tuningPID();
     // pros::delay(1000000);
     moveArmTo(downArmDegPinAndCup);

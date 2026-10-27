@@ -1,27 +1,14 @@
-// Distance-sensor wall reset (littleX). See src/littleX_handoff.md for the math and conventions.
-//
-// Call distanceReset() whenever the robot is sitting still near walls. It uses the current odom
-// pose's heading and position to work out which wall each distance sensor is looking at, then solves
-// for the robot's x or y from that wall's reading, no matter how far it is from the odom pose.
-// Only the axes that got a good reading are changed; heading is never touched.
-//
-// Conventions (same as LemLib and the Desmos graph):
-//   field is a square centered at (0, 0), walls at x = +-FIELD_HALF and y = +-FIELD_HALF
-//   heading 0 = facing +Y, positive = clockwise (degrees)
-//   sensor offsets: +x = right of robot center, +y = forward, measured to the sensor's FACE
-
 #include "robot.h"
 #include <cmath>
 #include <cstdio>
 
 namespace {
 
-// Distance from the field center (0, 0) to each wall. Field measured 140.5 in wall to wall.
 constexpr double FIELD_HALF = 140.5 / 2;
 // V5 distance sensor limits, in inches.
 constexpr double MAX_RANGE = 78.74;
 constexpr double MIN_RANGE = 0.8;
-// Beams that hit the wall at a steep angle read short (the beam is a cone). Skip them.
+// beams to skip.
 constexpr double MAX_INCIDENCE_DEG = 35.0;
 // Confidence (0-63) is only reported past 200 mm; below that PROS gives 63.
 constexpr int MIN_CONFIDENCE = 30;
@@ -36,15 +23,13 @@ struct SensorMount {
     const char* name;
 };
 
-// TODO: placeholder offsets from the Desmos graph. Measure the real robot to each sensor's face.
 const SensorMount mounts[] = {
     {&frontSensor, 4, 0.5, 0, "front"},//change later cause cad isn't perfect
     {&rightSensor, 3.75, .268, 90, "right"},
     {&leftSensor, -3.75, .268, 270, "left"},
 };
 
-// Reading in inches, or a negative number if the sensor has nothing usable.
-// mm and conf are the raw values, for logging.
+// Reading in inches, comparing in mm cause thats what it returns
 double readInches(pros::Distance& sensor, int& mm, int& conf) {
     mm = sensor.get();
     conf = sensor.get_confidence();
@@ -55,19 +40,16 @@ double readInches(pros::Distance& sensor, int& mm, int& conf) {
     return inches;
 }
 
-// One sensor's usable wall reading, solved for the robot center on one axis.
+// One sensor's wall reading, solved for the robot center on one axis.
 struct WallReading {
-    bool isX;      // true = solved x (hit a left/right wall), false = solved y
+    bool isX;      // true hit a left/right wall, false = top/bottom
     double solved; // robot center x or y, inches
-    double d;      // the reading, inches
+    double d;      // the reading in inches
     const char* name;
 };
 
 constexpr int NUM_MOUNTS = sizeof(mounts) / sizeof(mounts[0]);
 
-// Fills `out` with every sensor that has a usable reading from `pose` and returns how many.
-// The pose is used to pick which wall each sensor faces. With log = true, prints one line per
-// sensor to the terminal (pros terminal).
 int wallReadings(const lemlib::Pose& pose, WallReading out[NUM_MOUNTS], bool log = false) {
     double t = pose.theta * DEG_TO_RAD;
     double sinT = std::sin(t);
@@ -77,18 +59,18 @@ int wallReadings(const lemlib::Pose& pose, WallReading out[NUM_MOUNTS], bool log
     if (log) std::printf("pose (%.2f, %.2f, %.1f)\n", pose.x, pose.y, pose.theta);
 
     for (const SensorMount& m : mounts) {
-        // sensor offset from robot center, in field frame
+        // sensor offset from robot center
         double dx = m.offX * cosT + m.offY * sinT;
         double dy = -m.offX * sinT + m.offY * cosT;
         double sx = pose.x + dx;
         double sy = pose.y + dy;
 
-        // beam direction in field frame
+        // beam direction 
         double a = t + m.angle * DEG_TO_RAD;
         double dirX = std::sin(a);
         double dirY = std::cos(a);
 
-        // which wall the beam should hit from the guessed pose (closest positive hit)
+        // which wall the beam should hit from the guessed pose 
         double tX = INFINITY, tY = INFINITY;
         if (dirX > 1e-9) tX = (FIELD_HALF - sx) / dirX;
         else if (dirX < -1e-9) tX = (-FIELD_HALF - sx) / dirX;
@@ -132,14 +114,9 @@ int wallReadings(const lemlib::Pose& pose, WallReading out[NUM_MOUNTS], bool log
     return count;
 }
 
-// Works out the robot's x and/or y from the walls, using the current odom pose as the guess.
-// hasX/hasY say which axes got at least one good reading. Doesn't change the odom pose.
 void wallEstimate(double& x, bool& hasX, double& y, bool& hasY, bool log = false) {
     WallReading readings[NUM_MOUNTS];
     int count = wallReadings(chassis.getPose(), readings, log);
-
-    // readings are weighted by 1/d^2: the sensor error grows with distance (~5% past 200 mm),
-    // so a far sensor shouldn't pull the answer around or make it jump when it drops out
     double xSum = 0, ySum = 0;
     double xWeight = 0, yWeight = 0;
     for (int i = 0; i < count; i++) {
@@ -154,7 +131,6 @@ void wallEstimate(double& x, bool& hasX, double& y, bool& hasY, bool log = false
     y = hasY ? ySum / yWeight : 0;
 }
 
-// ---- pose fusion tuning (see startPoseFusion) ----
 // Odom variance (in^2) added per inch driven. 0.01 = about 1 in of drift after 100 in.
 constexpr double FUSE_Q_PER_INCH = 0.01;
 // Odom variance right after a reset (0.25 = sigma 0.5 in), and a cap so it can't grow forever.
@@ -187,7 +163,6 @@ bool distanceReset(double heading, bool resetX, bool resetY, int samples) {
         chassis.setPose(now.x, now.y, heading);
     }
 
-    // average several readings; the sensors update about every 33 ms
     double xSum = 0, ySum = 0;
     int xCount = 0, yCount = 0;
     for (int i = 0; i < samples; i++) {
