@@ -24,9 +24,9 @@ struct SensorMount {
 };
 
 const SensorMount mounts[] = {
-    {&frontSensor, 4, 0.5, 0, "front"},//change later cause cad isn't perfect
-    {&rightSensor, 3.75, .268, 90, "right"},
-    {&leftSensor, -3.75, .268, 270, "left"},
+    {&frontSensor, 4, 1.6, 0, "front"},//change later cause cad isn't perfect
+    // {&rightSensor, 3.75+.5, .268, 90, "right"},
+    {&leftSensor, -3.75-.2, .268, 270, "left"},
 };
 
 // Reading in inches, comparing in mm cause thats what it returns
