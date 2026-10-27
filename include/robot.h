@@ -89,7 +89,7 @@ constexpr float CASCADE_TRAVEL_SCALE = 2.355f;
 constexpr float INCHES_PER_DEGREE = (HS_AXLE_DIAMETER * 3.14159f) / 360.0f * CASCADE_TRAVEL_SCALE;
 
 // cascade heights are in inches
-inline constexpr double cascadeRestHeight = 1.917;  // was 2.517
+inline constexpr double cascadeRestHeight = 1.417;  // was 2.517
 inline constexpr double cascadeClampingHeight = 0.0;   
 inline constexpr double cascadeLiftOffset = 5.137;     // extra lift before moving the arm (was 1000 deg)
 

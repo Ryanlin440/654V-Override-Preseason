@@ -69,7 +69,7 @@ void primeArm() {
 void scoreArm() {
     cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     cascade.move_velocity(0);
-    moveArmTo(750, 2000, 70.0f);
+    moveArmTo(750, 2000, 100.0f);
     openClaw();
     armNeedsDown = true;
     armPosition = true;
@@ -116,27 +116,27 @@ void searchForStack(int timeoutMs, int detectRange = 150, int approachSpeed = 55
 
                 // creep straight at the stack until it's right in the claw
                 uint32_t approachStart = pros::millis();
-                while (claw_sensor.get_distance() >= 55 && pros::millis() - approachStart < 1500) {
+                while (claw_sensor.get_distance() >= 60 && pros::millis() - approachStart < 1500) {
                     chassis.arcade(approachSpeed, 0);
                     pros::delay(10);
                 }
 
-                // 1. Lower cascade, lower arm VERY gently against gravity (30.0f)
+                // Lower cascade, lower arm VERY gently against gravity (30.0f)
                 moveCascadeTo(0, 500);
                 moveArmTo(-10, 500, 60.0f);
 
-                // 2. Clamp the object
+                //Clamp the object
                 clawBool = true;
                 clawShut.set_value(true);
                 pros::delay(150);
+                chassis.arcade(0, 0);
 
-                // 3. Lift both back to their resting heights
+                // Lift both back to their resting heights
                 moveCascadeTo(cascadeRestHeight, 600);
                 // moveArmToHold(downArmDegPinAndCup+200, 600, 60.0f);
                 primeArm();
                 armNeedsDown = true;
                 clawClosed = true;
-                chassis.arcade(0, 0);
                 break;
             }
             pros::delay(10);
@@ -205,61 +205,56 @@ void EastWestAuton() {
     //move this back when there is wall - testing without wall
     chassis.setPose(61.5,0,90);
     distanceReset(90);
-    chassis.moveToPoint(59-6, 0, 200, {.forwards = false});
+    chassis.moveToPoint(55, 0, 200, {.forwards = false});
     toggleMechDown();
     moveArmToHold(350);
-    chassis.moveToPoint(78-6, 0, 400);
-    chassis.moveToPoint(63-8, 0, 400, {.forwards = false});
-    chassis.moveToPoint(78-6, 0, 400);
+    chassis.moveToPoint(72, 0, 400);
+    chassis.moveToPoint(58, 0, 400, {.forwards = false});
+    chassis.moveToPoint(72, 0, 400);
 
-    // chassis.setPose(63, 0, 90);
-    chassis.moveToPoint(48, 0, 2000, {.forwards = false});
-    
-    // pros::delay(100000);
-    //Go score the preloaded pin
-
-    chassis.turnToPoint(48, 17, 2000, {});//uncommented to make faster
-
+    chassis.moveToPoint(49, 0, 1000, {.forwards = false});
     moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
     moveCascadeTo(2.569,200);
-    chassis.moveToPoint(48, 17, 2000, {}, false);
+    //Go score the preloaded pin
+
+    chassis.turnToPoint(47, 18, 500, {});//uncommented to make faster
+
+    
+    chassis.moveToPoint(47, 18, 1000);
+    pros::delay(500);
     moveArmToHold(0);
     moveCascadeTo(0,1000);
     openClaw();
-    pros::delay(200);
+    pros::delay(50);
 
     // Get out of the way and face towards the first cup/pin
-    chassis.turnToPoint(48, 7, 200, {.forwards = false});
-    chassis.moveToPoint(48, 7, 800, {.forwards = false});
-    // chassis.turnToHeading(300, 1000);
-    // pros::delay(5000);
-    chassis.turnToPoint(30, 18, 500);
+    chassis.turnToPoint(47, 11, 200, {.forwards = false});
+    chassis.moveToPoint(47,11, 400, {.forwards = false});
+    chassis.turnToPoint(32, 17, 500);
     moveArmToHold(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight,1000);
     // Get the first cup/pin and get it
-    chassis.moveToPoint(30, 18, 2000, {}, false);
+    chassis.moveToPoint(32, 17, 2000);
     // pros::delay(10000);
-    searchForStack(1500);
+    searchForStack(1000);
     
     // Move to goal, move arm to back, and score
     // chassis.turnToHeading(200, 1000, {.maxSpeed = 60});
-    chassis.turnToPoint(35, 30, 500, {.forwards = false});
+    chassis.turnToPoint(35, 30, 200, {.forwards = false});
     chassis.moveToPoint(35, 30, 400, {.forwards = false});
 
-    // pros::delay(100000);
     
-    chassis.moveToPoint(46, 25, 800, {.forwards = false}, false);
+    chassis.moveToPoint(45, 25, 800, {.forwards = false}, false);
     moveArmToBack();
-    turnAgainstGoal(lemlib::AngularDirection::CW_CLOCKWISE, 0, 3500, true);
-    // moveCascadeTo(0);
-    
     openClawAndLiftThenPutBackFront(true);
-    // pros::delay(2000);
+    
 
-    // // Swing to the second cup/pin and get it
+    // second cup/pin and get it
     chassis.turnToPoint(48, 38, 2000);
-    chassis.moveToPoint(48, 38, 2000, {}, false);
-    searchForStack(2000);
+    chassis.moveToPoint(48, 38, 2000, {}, true);
+    pros::delay(250);
+    searchForStack(1000);
+
     // // chassis.turnToHeading(315, 1000, {.maxSpeed = 30});
     chassis.turnToPoint(48, 28, 1000, {.forwards=false});
     chassis.moveToPoint(48, 28, 2000, {.forwards=false});
