@@ -311,7 +311,7 @@ void movementRightSide(){
 void EastWestAuton() {
     // Toggle flip
     //move this back when there is wall - testing without wall
-    chassis.setPose(61.5,0,90);
+    // chassis.setPose(61.5,0,90);
     distanceReset(90);
     toggleMechDown();
     chassis.moveToPoint(58, 0, 400, {.forwards = false});
@@ -410,13 +410,13 @@ void NorthSouthAuton() {
 void SkillsAuton() {
     // Toggle flip
     //move this back when there is wall - testing without wall
-    chassis.setPose(65,0,90);
+    // chassis.setPose(65,0,90);
     distanceReset(90);
     toggleMechDown();
-    // chassis.moveToPoint(58, 0, 400, {.forwards = false});
-    // chassis.moveToPoint(72, 0, 300);
-    // chassis.moveToPoint(58, 0, 400, {.forwards = false});
-    // chassis.moveToPoint(72, 0, 300);
+    chassis.moveToPoint(58, 0, 400, {.forwards = false});
+    chassis.moveToPoint(72, 0, 300);
+    chassis.moveToPoint(58, 0, 400, {.forwards = false});
+    chassis.moveToPoint(72, 0, 300);
 
     chassis.moveToPoint(47, 0, 1000, {.forwards = false});
     moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
