@@ -17,6 +17,21 @@ void openClaw() {
 
 bool armBusy = false;
 
+// bring the arm back while the cascade comes down, then wait for both
+void returnArmAndLowerCascade(int cascadeTimeoutMs = 2000) {
+    pros::Task armReturn([]() {
+        moveArmToHold(downArmDegPinAndCup);
+    });
+    if (getCascadeInches() > 15) {
+        pros::delay(250);
+    } else {
+        pros::delay(150);
+    }
+    moveCascadeTo(cascadeRestHeight, cascadeTimeoutMs);
+    // wait for the arm so nothing else grabs it mid-move
+    armReturn.join();
+}
+
 void openClawAndLiftThenPutBackFront(bool async = false){
     if (async) {
         pros::Task([]() {
@@ -29,8 +44,7 @@ void openClawAndLiftThenPutBackFront(bool async = false){
     clawBool=false;
     pros::delay(200);
     moveCascadeTo(getCascadeInches() + cascadeLiftOffset+5, 500);
-    moveArmToHold(downArmDegPinAndCup);
-    moveCascadeTo(cascadeRestHeight,1000);
+    returnArmAndLowerCascade(1000);
 }
 
 
@@ -69,7 +83,11 @@ void primeArm() {
 void scoreArm() {
     cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     cascade.move_velocity(0);
-    moveArmTo(750, 2000, 100.0f);
+    if (getCascadeInches() < 3) {
+        moveArmTo(650, 2000, 100.0f);
+    } else {
+        moveArmTo(600, 2000, 100.0f);
+    }
     openClaw();
     armNeedsDown = true;
     armPosition = true;
@@ -96,8 +114,7 @@ void moveArmToFront() {
     pros::delay(100);
     cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
     moveCascadeTo(getCascadeInches() + cascadeLiftOffset, 500);
-    moveArmToHold(downArmDegPinAndCup);
-    moveCascadeTo(cascadeRestHeight);
+    returnArmAndLowerCascade();
     armPosition=false;
 }
 
@@ -242,7 +259,7 @@ void EastWestAuton() {
     // Toggle flip
     //move this back when there is wall - testing without wall
     chassis.setPose(61.5,0,90);
-    distanceReset(90);
+    // distanceReset(90);
     toggleMechDown();
     chassis.moveToPoint(58, 0, 400, {.forwards = false});
     chassis.moveToPoint(72, 0, 300);
@@ -416,38 +433,126 @@ void NorthSouthAuton() {
 
 
 void SkillsAuton() {
+    // Toggle flip
+    //move this back when there is wall - testing without wall
+    chassis.setPose(65,0,90);
+    // distanceReset(90);
+    toggleMechDown();
+    // chassis.moveToPoint(58, 0, 400, {.forwards = false});
+    // chassis.moveToPoint(72, 0, 300);
+    // chassis.moveToPoint(58, 0, 400, {.forwards = false});
+    // chassis.moveToPoint(72, 0, 300);
 
-    EastWestAuton();
-    pros::delay(1000);
-
-    chassis.turnToPoint(47, 58.5, 1000);
-    chassis.moveToPoint(47, 58.5, 1000);
-
-    chassis.turnToPoint(65, 58.5, 1000);
-    chassis.moveToPoint(65, 58.5, 1000);
-
-    searchForStack(1000, cascadeRestHeight);
-
-    chassis.turnToPoint(24, 58.5, 1000,{.forwards=false});
-    chassis.moveToPoint(24, 58.5, 1000, {.forwards=false});
-
-    seperatePin();
-
+    chassis.moveToPoint(47, 0, 1000, {.forwards = false});
     moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
     moveCascadeTo(3,200);
+    //Go score the preloaded pin
 
-    chassis.turnToPoint(24, 52, 1000);
-    chassis.moveToPoint(24, 52, 1000);
+    chassis.turnToPoint(47, 18, 500, {});//uncommented to make faster
+
+    chassis.moveToPoint(47, 18, 1000);
     pros::delay(500);
     moveArmToHold(0);
     moveCascadeTo(0,1000);
     openClaw();
+    pros::delay(250);
 
-    // // Move in front of matchloader
-    // chassis.turnToHeading(70, 1000);
-    // chassis.moveToPoint(48, 80, 2000);
-    // chassis.turnToHeading(90, 1000);
-    // chassis.moveToPoint(65, 80, 2000);
+    // Get out of the way and face towards the first cup/pin
+    chassis.turnToPoint(47, 10, 200, {.forwards = false});
+    chassis.moveToPoint(47,10, 400, {.forwards = false});
+    chassis.turnToPoint(32, 17, 700);
+    moveArmToHold(downArmDegPinAndCup);
+    moveCascadeTo(cascadeRestHeight,1000);
+
+    // Get the first cup/pin and get it
+    chassis.moveToPoint(32, 18, 2000);
+    searchForStack(1000, cascadeRestHeight);
+    pros::delay(250);
+    
+    // prepare going to goal
+    chassis.turnToPoint(5, 47, 500, {.forwards = false});
+    chassis.moveToPoint(5, 47, 1000, {.forwards = false});
+    seperatePin();
+
+    // go to goal
+    chassis.turnToPoint(18, 47, 500);
+    chassis.moveToPoint(18, 47, 1000);
+
+    // drop pin in
+    pros::delay(500);
+    moveArmToHold(0);
+    moveCascadeTo(0,1000);
+    openClaw();
+    pros::delay(250);
+
+    // go back for toggle
+    chassis.turnToPoint(0, 47, 500, {.forwards = false});
+    chassis.moveToPoint(0, 47, 1000, {.forwards = false});
+
+    // go to toggle
+    chassis.turnToPoint(0, 72, 500);
+
+    // // toggle 
+    // chassis.moveToPoint(0, 72, 800);
+    // chassis.moveToPoint(0, 58, 400, {.forwards = false});
+    // chassis.moveToPoint(0, 72, 300);
+
+    // getting to matchloader y level
+    chassis.moveToPoint(0, 58.5, 1000, {.forwards = false});
+
+    for (int i = 1; i <= 4; i++){
+        // traveling to matchload
+        chassis.turnToPoint(41, 58.5, 1000);
+        chassis.moveToPoint(41, 58.5, 1000);
+        chassis.turnToPoint(65, 58.5, 1000);
+        chassis.moveToPoint(65, 58.5, 1000);
+        searchForStack(1000, 2 * i);
+        pros::delay(250);
+
+        // Going to goal
+        chassis.turnToPoint(41, 58, 1000, {.forwards = false});
+        chassis.moveToPoint(41, 58, 1000, {.forwards = false});
+        chassis.turnToPoint(28, 50, 1000, {.forwards = false});
+        chassis.moveToPoint(28, 50, 1000, {.forwards = false});
+        moveArmToBack();
+        openClawAndLiftThenPutBackFront(true);
+        pros::delay(250);
+    }
+    // Get last stack from setup
+    chassis.turnToPoint(43, 47, 1000);
+    chassis.moveToPoint(43, 47, 1000);
+    searchForStack(1000, cascadeRestHeight);
+    pros::delay(250);
+
+    // getting to second goal
+    chassis.turnToPoint(47, 29, 1000, {.forwards = false});
+    chassis.moveToPoint(47, 29, 1000, {.forwards = false});
+    moveArmToBack();
+    openClawAndLiftThenPutBackFront(true);
+    pros::delay(250);
+
+    for(int i = 1; i <= 2; i++){
+        // get in front of matchload
+        chassis.turnToPoint(47, 58.5, 1000);
+        chassis.moveToPoint(47, 58.5, 1000);
+
+        //going to matchload
+        chassis.turnToPoint(65, 58.5, 1000);
+        chassis.moveToPoint(65, 58.5, 1000);
+        searchForStack(1000, 2 * i);
+
+        // getting to second goal
+        chassis.turnToPoint(47, 29, 1000, {.forwards = false});
+        chassis.moveToPoint(47, 29, 1000, {.forwards = false});
+        moveArmToBack();
+        openClawAndLiftThenPutBackFront(true);
+    }
+
+    chassis.turnToPoint(35, 35, 1000);
+    chassis.moveToPoint(35, 35, 1000);
+
+    chassis.turnToPoint(8, 8, 1000, {.forwards = false});
+    chassis.moveToPoint(8, 8, 1000, {.forwards = false});
 
 }
 // ---------------------------------------------------------------------------

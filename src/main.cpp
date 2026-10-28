@@ -622,7 +622,11 @@ void R1Button(){
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
             //moveCascadeTo(660);
             cascade.move_velocity(0);
-            moveArmTo(600, 1000, 65.0f);
+            if (getCascadeInches() < 3) {
+                moveArmTo(650, 1000, 95.0f);
+            } else {
+                moveArmTo(600, 1000, 95.0f);
+            }
             
             pressNum=0;
             clawShut.set_value(false);
@@ -631,9 +635,18 @@ void R1Button(){
             cascade.set_brake_mode(pros::E_MOTOR_BRAKE_HOLD);
             pros::delay(100);
             moveCascadeTo(getCascadeInches() + cascadeLiftOffset, 500);
-            pros::delay(250);
-            moveArmToHold(downArmDegPinAndCup);
+            pros::delay(150);
+            pros::Task armReturn([]() {
+                moveArmToHold(downArmDegPinAndCup);
+            });
+            if (getCascadeInches() > 15) {
+                pros::delay(250);
+            } else {
+                pros::delay(150);
+            }
             moveCascadeTo(cascadeRestHeight);
+            // wait for the arm so the armNeedsDown hold below doesn't stop it mid-move
+            armReturn.join();
             isScoring = false;
         }
         //if(armNeedsDown) moveArmTo(downArmDegPinAndCup+50);
