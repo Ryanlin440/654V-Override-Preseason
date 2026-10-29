@@ -448,9 +448,9 @@ void SkillsAuton() {
 
     chassis.moveToPoint(47, 0, 1000, {.forwards = false});
     moveArmToHold(downArmDegPinAndCup, 1000, 60.0f);
-    moveCascadeTo(3,1000);
-    //Go score the preloaded pin
+    moveCascadeTo(5,1000);
 
+    //Go score the preloaded pin
     chassis.turnToPoint(47, -18, 500, {});//uncommented to make faster
 
     chassis.moveToPoint(47, -18, 1000);
@@ -461,19 +461,19 @@ void SkillsAuton() {
     openClaw();
     pros::delay(250);
 
-    // Get out of the way and face towards the first cup/pin
-    chassis.turnToPoint(47, -10, 1000, {.forwards = false});
-    chassis.moveToPoint(47,-10, 1000, {.forwards = false});
-    chassis.turnToPoint(58, -17, 1000);
-    chassis.moveToPoint(58,-17, 1000);
-    chassis.turnToPoint(59, -39, 1000);
-    chassis.moveToPoint(59,-39, 1000);
+    // Get out of the way and go towards match loader
+    chassis.turnToPoint(47, -10, 1000, {.forwards = false, .minSpeed = 60});
+    chassis.moveToPoint(47,-10, 1000, {.forwards = false, .minSpeed = 60});
+    chassis.turnToPoint(58, -17, 1000, {.minSpeed = 60});
+    chassis.moveToPoint(58,-17, 1000, {.minSpeed = 60});
+    chassis.turnToPoint(59, -39, 1000, {.minSpeed = 60});
+    chassis.moveToPoint(59,-39, 1000, {.minSpeed = 60});
     moveArmToHold(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight,1000);
 
     // CLEARING
-    chassis.turnToPoint(35, -58.5, 1000, {.forwards = false});
-    chassis.moveToPoint(35,-58.5, 1000, {.forwards = false});
+    chassis.turnToPoint(35, -58.5, 1000, {.forwards = false, .minSpeed = 60});
+    chassis.moveToPoint(35,-58.5, 1000, {.forwards = false, .minSpeed = 60});
 
     // Getting to matchloader
     chassis.turnToPoint(61, -58.5, 1000);
@@ -483,11 +483,14 @@ void SkillsAuton() {
     
     for(int i = 1; i <= 4; i++){
         // Moving to goal
-        chassis.turnToPoint(47, -58.5, 1000, {.forwards = false});
-        chassis.moveToPoint(47,-58.5, 1000, {.forwards = false});
-        moveCascadeTo((i-1)*2);                                             //need to change this probably
-        chassis.turnToPoint(47, -31, 1000, {.forwards = false});
-        chassis.moveToPoint(47,-31, 1000, {.forwards = false});
+        chassis.turnToPoint(47, -58.5, 1000, {.forwards = false, .minSpeed = 60});
+        chassis.moveToPoint(47,-58.5, 1000, {.forwards = false, .minSpeed = 60});
+
+        moveCascadeTo((i+2)*2);  //need to change this probably
+
+        chassis.turnToPoint(47, -28, 1000, {.forwards = false, .minSpeed = 60});
+        chassis.moveToPoint(47,-28, 1000, {.forwards = false, .minSpeed = 60});
+
         // Scoring
         moveArmToBack();
         // moveCascadeTo((i-1)*2);                         //need to change this probably
@@ -515,10 +518,7 @@ void SkillsAuton() {
     pros::delay(250);
 
     // clear the goal //i got rid cause i don't think it does anything
-    // chassis.turnToPoint(47, -58.5, 1000);
-    // chassis.moveToPoint(47, -58.5, 1000);
-
-       chassis.turnToPoint(47, -40, 1000);
+    chassis.turnToPoint(47, -40, 1000);
     chassis.moveToPoint(47, -40, 1000);
 
     // move to clear second batch
@@ -547,12 +547,11 @@ void SkillsAuton() {
         // Going to goal
         chassis.turnToPoint(47, 58.5, 1000, {.forwards = false});
         chassis.moveToPoint(47, 58.5, 1000, {.forwards = false});
-        moveCascadeTo((i+2)*2);//prob need to change this, i+2 cause there should be two cups already right?
+        moveCascadeTo((i+2)*2);     //prob need to change this, i+2 cause there should be two cups already right?
         chassis.turnToPoint(47, 31, 1000, {.forwards = false});
         chassis.moveToPoint(47, 31, 1000, {.forwards = false});
         moveArmToBack();
         
-
         openClawAndLiftThenPutBackFront(true);
         pros::delay(250);
     }
