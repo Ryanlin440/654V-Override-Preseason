@@ -327,8 +327,8 @@ void NorthSouthAuton() {
     // Toggle flip
     //move this back when there is wall - testing without wall
 
-    // distanceReset(0);
-
+    distanceReset(0);
+    // pros::delay(10000);
     toggleMechDown();
     chassis.moveToPoint(0, 58, 400, {.forwards = false});
     chassis.moveToPoint(0, 72, 300);
@@ -358,23 +358,23 @@ void NorthSouthAuton() {
 
     // chassis.turnToHeading(300, 1000);
     // pros::delay(5000);
-    chassis.turnToPoint(16, 56, 1000);
+    chassis.turnToPoint(16, 58, 1000);
     moveArmToHold(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight,1000);
     // Get the first cup/pin and get it
-    chassis.moveToPoint(16, 56, 2000);           //can probably motion change this part
+    chassis.moveToPoint(16, 58, 2000);           //can probably motion change this part
     
     // Move to goal, move arm to back, and score
     // chassis.turnToHeading(200, 1000, {.maxSpeed = 60});
     chassis.turnToPoint(25, 54, 1000, {.forwards = false});
-    chassis.moveToPoint(25, 54, 500, {.forwards = false});
+    chassis.moveToPoint(25, 54, 2000, {.forwards = false});
     // moveArmToBack();
     // openClawAndLiftThenPutBackFront(true);
     // pros::delay(250);
     // chassis.moveToPoint(-24, 45,250, {}, false);
     // pros::delay(2000);
-    chassis.turnToPoint(24, 60, 1000);
-    chassis.moveToPoint(24, 60, 1000, {}, false);
+    chassis.turnToPoint(23, 60, 1000);
+    chassis.moveToPoint(23, 60, 1000, {}, false);
     searchForStack(1000);
     chassis.moveToPoint(24, 50, 1000, {.forwards = false});
 
@@ -386,9 +386,10 @@ void NorthSouthAuton() {
     // chassis.swingToHeading(270, lemlib::DriveSide::LEFT, 2000);
     chassis.swingToPoint(-32, 56, lemlib::DriveSide::LEFT, 2000);
 
-    chassis.moveToPoint(10, 56, 1000, {.minSpeed=70});
-    chassis.moveToPoint(-32, 56, 2000);
+    chassis.moveToPoint(10, 56, 1000, {.minSpeed=70, .earlyExitRange=3});
+    chassis.moveToPoint(-36, 56, 2000);
     chassis.swingToPoint(-24, 60, lemlib::DriveSide::LEFT, 2000);
+    chassis.turnToPoint(-24, 60, 1000);
     chassis.moveToPoint(-24, 60, 1000);
     searchForStack(1000);
 
@@ -438,7 +439,7 @@ void SkillsAuton() {
     // Toggle flip
     //move this back when there is wall - testing without wall
     // chassis.setPose(65,0,90);
-    // distanceReset(90);
+    distanceReset(90);
     toggleMechDown();
     chassis.moveToPoint(58, 0, 400, {.forwards = false});
     chassis.moveToPoint(72, 0, 300);
