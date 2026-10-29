@@ -352,7 +352,7 @@ void competition_initialize() {
  */
 
 void autonomous() { 
-    distanceReset(90);
+    // distanceReset(90);
     // chassis.setPose(0, -61.5, 180); //make sure to change this everything
     // chassis.setPose(0, 61.5, 0);
     // runAuton();
@@ -426,6 +426,7 @@ void opcontrol() {
     // pros::delay(1000000);
     moveArmTo(downArmDegPinAndCup);
     moveCascadeTo(cascadeRestHeight, 800);
+    
     // autonomous();
     while (true) {
 
@@ -443,6 +444,7 @@ void opcontrol() {
 
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP)){
             distanceReset();
+            // moveCascadeTo(9,1000);
         }
 
         if (!isScoring){
