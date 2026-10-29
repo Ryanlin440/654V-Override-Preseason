@@ -380,7 +380,10 @@ void NorthSouthAuton() {
     // pros::delay(2000);
     chassis.turnToPoint(23, 60, 1000);
     chassis.moveToPoint(23, 60, 1000, {}, false);
+    // chassis.arcade(20, 0);//make it keep going forward?
     searchForStack(1000);
+    chassis.arcade(20, 0);//make it keep going forward?
+    pros::delay(500);
     chassis.moveToPoint(24, 50, 1000, {.forwards = false});
 
     pros::delay(250);
@@ -397,6 +400,8 @@ void NorthSouthAuton() {
     chassis.turnToPoint(-24, 60, 1000);
     chassis.moveToPoint(-24, 60, 1000);
     searchForStack(1000);
+    chassis.arcade(20, 0);//make it keep going forward?
+    pros::delay(500);
 
     chassis.moveToPoint(-24, 50, 1000, {.forwards = false});
 
