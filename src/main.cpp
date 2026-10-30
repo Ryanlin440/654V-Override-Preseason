@@ -40,14 +40,14 @@ lemlib::TrackingWheel horizontal_tracking_wheel(&horizontal_rotation_sensor, lem
 
 pros::MotorGroup cascade ({1, -2}, pros::v5::MotorGears::blue);//2 11w
 pros::Rotation cascade_sensor(-3);
-lemlib::PID cascade_pid(1000,0,2000,0); // old (5,0,20) per degree, scaled to per inch
+lemlib::PID cascade_pid(250,-.1,150,10); // old (5,0,20) per degree, scaled to per inch
 float getCascadeInches() {
     return (cascade_sensor.get_position() / 100.0f) * INCHES_PER_DEGREE;
 }
 void moveCascadeTo(double targetInches, int timeoutMs) {
     cascade_pid.reset();
     uint32_t start = pros::millis();
-
+    
     while (true) {
         float current_pos_inches = getCascadeInches();
         float error = targetInches - current_pos_inches;
@@ -57,7 +57,7 @@ void moveCascadeTo(double targetInches, int timeoutMs) {
         cascade.move(output);
 
         // stop moving if the target reached or if timer run out
-        if (std::abs(error) < .2 || pros::millis() - start > (uint32_t)timeoutMs) {
+        if (std::abs(error) < .1 || pros::millis() - start > (uint32_t)timeoutMs*10) {
             cascade.set_brake_mode(pros::MotorBrake::hold);
             cascade.move_velocity(0);
             break;
@@ -271,7 +271,7 @@ void initialize() {
             }
             double heading = std::fmod(chassis.getPose().theta, 360.0);
             if (heading < 0) heading += 360.0;
-            if (!pickingAuton) controller.print(2, 0, "%.2f", heading);
+            if (!pickingAuton) controller.print(2, 0, "%.4f", (double)getCascadeInches());
             pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
             pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
             pros::lcd::print(2, "Theta: %f", heading); // heading
@@ -444,7 +444,11 @@ void opcontrol() {
 
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP)){
             distanceReset();
-            // moveCascadeTo(9,1000);
+            moveCascadeTo(6,5000);
+        }
+        if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)){
+            distanceReset();
+            moveCascadeTo(0,5000);
         }
 
         if (!isScoring){
