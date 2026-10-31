@@ -32,7 +32,8 @@ pros::Distance frontSensor(15);
 pros::Distance leftSensor(17);
 pros::Distance rightSensor(8);
 
-ScaledImu imu(5, 1.0050); // scale from spinTest(): 1.0063 read ~0.15% high at 300-650 deg/s turns
+ScaledImu imu(5, 1.0032, 1.0047); // left, right scales from spinTest(); right averages half + full speed runs
+// ScaledImu imu(5, 1.0000, 1.0000); // left, right scales from spinTest(); right averages half + full speed runs
 pros::Rotation vertical_rotation_sensor(-21);
 pros::Rotation horizontal_rotation_sensor(4);
 lemlib::TrackingWheel vertical_tracking_wheel(&vertical_rotation_sensor, lemlib::Omniwheel::NEW_2, -.55);
@@ -57,7 +58,7 @@ void moveCascadeTo(double targetInches, int timeoutMs) {
         cascade.move(output);
 
         // stop moving if the target reached or if timer run out
-        if (std::abs(error) < .1 || pros::millis() - start > (uint32_t)timeoutMs*10) {
+        if (std::abs(error) < .3 || pros::millis() - start > (uint32_t)timeoutMs) {
             cascade.set_brake_mode(pros::MotorBrake::hold);
             cascade.move_velocity(0);
             break;
@@ -271,7 +272,7 @@ void initialize() {
             }
             double heading = std::fmod(chassis.getPose().theta, 360.0);
             if (heading < 0) heading += 360.0;
-            if (!pickingAuton) controller.print(2, 0, "%.4f", (double)getCascadeInches());
+            if (!pickingAuton) controller.print(2, 0, "%.4f", heading);
             pros::lcd::print(0, "X: %f", chassis.getPose().x); // x
             pros::lcd::print(1, "Y: %f", chassis.getPose().y); // y
             pros::lcd::print(2, "Theta: %f", heading); // heading
@@ -306,6 +307,8 @@ void initialize() {
             L2Button();
 
             R1Button();
+
+            RightArrowButton();
             
 
             pros::delay(50);
@@ -362,9 +365,11 @@ void autonomous() {
     // EastWestAuton(); 
 
     // SkillsAuton();
+    poseFusionEnabled = true;
+
 
     chassis.setPose(0, -61.5, 180); //make sure to change this everything
-    NorthSouthAuton();
+    NorthSouthAuton(); //make sure to run correct one
 }
 
 /**
@@ -444,11 +449,11 @@ void opcontrol() {
 
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_UP)){
             distanceReset();
-            moveCascadeTo(6,5000);
+            // moveCascadeTo(6,5000);
         }
         if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)){
             distanceReset();
-            moveCascadeTo(0,5000);
+            // moveCascadeTo(0,5000);
         }
 
         if (!isScoring){
@@ -509,12 +514,7 @@ void L1Button() {
                 isScoring = true;
                 
                 // Lower cascade and arm
-                moveCascadeTo(cascadeClampingHeight, 200); 
-                moveArmTo(downArmDegPinAndCupClamping, 300, 30.0f);
-                
-                // grab object
-                clawBool = true;
-                clawShut.set_value(true);
+                clampClaw();
                 pros::delay(150);
                 
                 // return to resting height
@@ -535,16 +535,8 @@ void L1Button() {
             if (clawBool == false) {
                 isScoring = true;
                 
-                // lower the cascade
-                moveCascadeTo(cascadeClampingHeight, 600); 
-                
-                moveArmTo(downArmDegPinAndCupClamping, 600, 30.0f);
-                
-                // grab object
-                clawBool = true;
-                clawShut.set_value(true);
+                clampClaw();
                 pros::delay(150); 
-                
                 // return to resting height
                 moveCascadeTo(cascadeRestHeight, 600); 
                 moveArmTo(downArmDegPinAndCup, 600, 127.0f); 
@@ -556,31 +548,9 @@ void L1Button() {
             else {
                 isScoring = true;
                 
-                // lower cascade
-                moveCascadeTo(cascadeClampingHeight, 600);
-                
                 // open claw
                 clawBool = false;
                 clawShut.set_value(false);
-
-                // wait for driver to back away
-                double startPosition = left_motors.get_position(); 
-                uint32_t waitStart = pros::millis();
-                
-                while (true) {
-                    double currentPosition = left_motors.get_position();
-                    double degreesMoved = std::abs(currentPosition - startPosition);
-                    
-                    // timeout if takes too long
-                    if (degreesMoved > 150.0 || pros::millis() - waitStart > 1000) {
-                        break;
-                    }
-                    pros::delay(10); 
-                }
-                
-                // return to resting height
-                moveCascadeTo(cascadeRestHeight, 600);
-                armNeedsDown = true;
                 
                 isScoring = false;
             }
@@ -663,6 +633,40 @@ void R1Button(){
      }
 };
 
+void RightArrowButton(){
+    if(controller.get_digital_new_press(pros::E_CONTROLLER_DIGITAL_RIGHT)){//ARM movement
+        isScoring = true;
+                
+        // lower cascade
+        moveCascadeTo(cascadeClampingHeight, 600);
+        
+        // open claw
+        clawBool = false;
+        clawShut.set_value(false);
+
+        // wait for driver to back away
+        double startPosition = left_motors.get_position(); 
+        uint32_t waitStart = pros::millis();
+        
+        while (true) {
+            double currentPosition = left_motors.get_position();
+            double degreesMoved = std::abs(currentPosition - startPosition);
+            
+            // timeout if takes too long
+            if (degreesMoved > 150.0 || pros::millis() - waitStart > 1000) {
+                break;
+            }
+            pros::delay(10); 
+        }
+        
+        // return to resting height
+        moveCascadeTo(cascadeRestHeight, 600);
+        armNeedsDown = true;
+        
+        isScoring = false;
+    }
+};
+
 void toggleMech(){
     if(controller.get_digital(pros::E_CONTROLLER_DIGITAL_DOWN)){
         toggles.set_value(true);
@@ -679,3 +683,16 @@ void toggleMechUp(){
 void toggleMechDown(){
     toggles.set_value(false);
 };
+void clampClaw(){
+    // lower the cascade
+    
+    pros::Task armTask([&]() {
+        moveCascadeTo(cascadeClampingHeight, 400); 
+        moveArmTo(downArmDegPinAndCupClamping, 600, 30.0f);
+    });
+    pros::delay(150);
+    // grab object
+    clawBool = true;
+    clawShut.set_value(true);
+    // pros::delay(150); 
+}

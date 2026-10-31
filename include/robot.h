@@ -15,6 +15,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <mutex>
 
 #include "lemlib/api.hpp"
 #include "lemlib/chassis/chassis.hpp"
@@ -25,6 +26,7 @@
 #include "pros/misc.hpp"
 #include "pros/motor_group.hpp"
 #include "pros/rotation.hpp"
+#include "pros/rtos.hpp"
 
 extern pros::MotorGroup left_motors;
 extern pros::MotorGroup right_motors;
@@ -39,19 +41,51 @@ extern pros::Distance backTopSensor;
 extern pros::Distance claw_sensor;
 
 
-// The V5 IMU under-reads turns slightly. This scales its rotation so LemLib's
-// odom (which reads the IMU through a pros::Imu*) gets true degrees. Measured
-// with spinTest(): 10 turns each way read ~3577 instead of 3600.
+// The V5 IMU under-reads turns slightly, and by a different amount each way.
+// This scales its rotation so LemLib's odom (which reads the IMU through a
+// pros::Imu*) gets true degrees. Each change in rotation is scaled by its own
+// direction and added to a running total. Measured with spinTest() at full
+// speed: 10 turns left read ~3588, right ~3581 instead of 3600.
 class ScaledImu : public pros::Imu {
   public:
-    ScaledImu(std::uint8_t port, double scale) : pros::Imu(port), scale(scale) {}
-    double get_rotation() const override { return pros::Imu::get_rotation() * scale; }
+    ScaledImu(std::uint8_t port, double leftScale, double rightScale)
+        : pros::Imu(port), leftScale(leftScale), rightScale(rightScale) {}
+    double get_rotation() const override {
+        double raw = pros::Imu::get_rotation();
+        if (!std::isfinite(raw)) return raw; // still calibrating / error
+        std::lock_guard<pros::Mutex> lock(mutex);
+        double delta = raw - lastRaw;
+        // positive = clockwise = right turn
+        scaled += delta * (delta > 0 ? rightScale : leftScale);
+        lastRaw = raw;
+        return scaled;
+    }
     double get_heading() const override {
         double heading = std::fmod(get_rotation(), 360.0);
         return heading < 0 ? heading + 360.0 : heading;
     }
+    // these jump the raw rotation, so the running total has to follow
+    std::int32_t reset(bool blocking = false) const override {
+        std::int32_t result = pros::Imu::reset(blocking);
+        zero();
+        return result;
+    }
+    std::int32_t tare_rotation() const override {
+        std::int32_t result = pros::Imu::tare_rotation();
+        zero();
+        return result;
+    }
   private:
-    double scale;
+    void zero() const {
+        std::lock_guard<pros::Mutex> lock(mutex);
+        lastRaw = 0;
+        scaled = 0;
+    }
+    double leftScale;
+    double rightScale;
+    mutable pros::Mutex mutex;
+    mutable double lastRaw = 0;
+    mutable double scaled = 0;
 };
 extern ScaledImu imu;
 extern pros::Rotation vertical_rotation_sensor;
@@ -78,7 +112,7 @@ extern lemlib::PID arm_hold_pid;
 void moveArmTo(double target, int timeoutMs = 2000, float maxSpeed = 127.0f);
 void moveArmToHold(double target, int timeoutMs = 2000, float maxSpeed = 127.0f);
 inline constexpr double downArmDegPinAndCup = 65;
-inline constexpr double downArmDegPinAndCupClamping = 20;
+inline constexpr double downArmDegPinAndCupClamping = 0;
 inline constexpr double downArmDegJustPin = 0;
 inline constexpr double allianceGoalWithNothing = 5;
 inline constexpr double normalAllianceGoal = 5;
@@ -89,8 +123,8 @@ constexpr float CASCADE_TRAVEL_SCALE = 2.355f;
 constexpr float INCHES_PER_DEGREE = (HS_AXLE_DIAMETER * 3.14159f) / 360.0f * CASCADE_TRAVEL_SCALE;
 
 // cascade heights are in inches
-inline constexpr double cascadeRestHeight = 1.55;  // was 1.4
-inline constexpr double cascadeClampingHeight = 0.0;   
+inline constexpr double cascadeRestHeight = 2.017;  // was 2.517
+inline constexpr double cascadeClampingHeight = -1.0;   
 inline constexpr double cascadeLiftOffset = 5.137;     // extra lift before moving the arm (was 1000 deg)
 
 float getCascadeInches();
@@ -139,6 +173,7 @@ void scoreArm();
 void L1Button();
 void L2Button();
 void R1Button();
+void RightArrowButton();
 void toggleMech();
 void toggleMechUp();
 void toggleMechDown();
@@ -156,7 +191,9 @@ void openClaw();
 /// Returns true if any axis was corrected.
 /// `heading` (degrees, 0 = +Y, clockwise) sets the heading first, e.g. distanceReset(180) at the
 /// start of opcontrol. Leave it out (NAN) to keep the current heading.
-bool distanceReset(double heading = NAN, bool resetX = true, bool resetY = true, int samples = 5);
+/// `skipSensor` ignores one sensor for this reset, e.g. distanceReset(NAN, true, true, 5, &leftSensor).
+bool distanceReset(double heading = NAN, bool resetX = true, bool resetY = true, int samples = 5,
+                   const pros::Distance* skipSensor = nullptr);
 /// Starts a task that keeps printing the distance-sensor x/y on brain line 7 (doesn't move odom).
 void startWallEstimatePrinter();
 /// Starts a task that blends the distance sensors into LemLib's odom with a per-axis Kalman gain.
@@ -169,3 +206,5 @@ extern bool poseFusionEnabled;
 void EastWestAuton();
 void SkillsAuton();
 void NorthSouthAuton();
+
+void clampClaw();

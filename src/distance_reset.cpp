@@ -21,22 +21,23 @@ struct SensorMount {
     double offY;  // inches, + = forward
     double angle; // degrees clockwise from robot forward: front 0, right 90, back 180, left 270
     const char* name;
+    double maxRange = MAX_RANGE; // inches, readings past this are ignored
 };
 
 const SensorMount mounts[] = {
     {&frontSensor, 4, 1.6, 0, "front"},//change later cause cad isn't perfect
-    {&rightSensor, 3.75+1.5, .268, 90, "right"},
-    {&leftSensor, -3.75-.2-1.5, .268, 270, "left"},
+    {&rightSensor, 3.75+1.5, .268, 90, "right", 50},
+    {&leftSensor, -3.75-.2, .268, 270, "left"},
 };
 
 // Reading in inches, comparing in mm cause thats what it returns
-double readInches(pros::Distance& sensor, int& mm, int& conf) {
+double readInches(pros::Distance& sensor, int& mm, int& conf, double maxRange = MAX_RANGE) {
     mm = sensor.get();
     conf = sensor.get_confidence();
     if (mm == PROS_ERR || mm <= 0 || mm >= 9999) return -1;
     if (mm > 200 && conf < MIN_CONFIDENCE) return -1;
     double inches = mm / 25.4;
-    if (inches < MIN_RANGE || inches > MAX_RANGE) return -1;
+    if (inches < MIN_RANGE || inches > maxRange) return -1;
     return inches;
 }
 
@@ -50,7 +51,8 @@ struct WallReading {
 
 constexpr int NUM_MOUNTS = sizeof(mounts) / sizeof(mounts[0]);
 
-int wallReadings(const lemlib::Pose& pose, WallReading out[NUM_MOUNTS], bool log = false) {
+int wallReadings(const lemlib::Pose& pose, WallReading out[NUM_MOUNTS], bool log = false,
+                 const pros::Distance* skipSensor = nullptr) {
     double t = pose.theta * DEG_TO_RAD;
     double sinT = std::sin(t);
     double cosT = std::cos(t);
@@ -59,6 +61,7 @@ int wallReadings(const lemlib::Pose& pose, WallReading out[NUM_MOUNTS], bool log
     if (log) std::printf("pose (%.2f, %.2f, %.1f)\n", pose.x, pose.y, pose.theta);
 
     for (const SensorMount& m : mounts) {
+        if (m.sensor == skipSensor) continue;
         // sensor offset from robot center
         double dx = m.offX * cosT + m.offY * sinT;
         double dy = -m.offX * sinT + m.offY * cosT;
@@ -83,7 +86,7 @@ int wallReadings(const lemlib::Pose& pose, WallReading out[NUM_MOUNTS], bool log
         double incidence = std::acos(std::fabs(hitsXWall ? dirX : dirY)) / DEG_TO_RAD;
 
         int mm, conf;
-        double d = readInches(*m.sensor, mm, conf);
+        double d = readInches(*m.sensor, mm, conf, m.maxRange);
 
         const char* skip = nullptr;
         if (expected <= 0) skip = "odom says sensor is past the wall";
@@ -114,9 +117,10 @@ int wallReadings(const lemlib::Pose& pose, WallReading out[NUM_MOUNTS], bool log
     return count;
 }
 
-void wallEstimate(double& x, bool& hasX, double& y, bool& hasY, bool log = false) {
+void wallEstimate(double& x, bool& hasX, double& y, bool& hasY, bool log = false,
+                  const pros::Distance* skipSensor = nullptr) {
     WallReading readings[NUM_MOUNTS];
-    int count = wallReadings(chassis.getPose(), readings, log);
+    int count = wallReadings(chassis.getPose(), readings, log, skipSensor);
     double xSum = 0, ySum = 0;
     double xWeight = 0, yWeight = 0;
     for (int i = 0; i < count; i++) {
@@ -156,7 +160,7 @@ double fuseP[2] = {FUSE_P_RESET, FUSE_P_RESET};
 
 bool poseFusionEnabled = true;
 
-bool distanceReset(double heading, bool resetX, bool resetY, int samples) {
+bool distanceReset(double heading, bool resetX, bool resetY, int samples, const pros::Distance* skipSensor) {
     if (!std::isnan(heading)) {
         lemlib::Pose now = chassis.getPose();
         chassis.setPose(now.x, now.y, heading);
@@ -168,7 +172,7 @@ bool distanceReset(double heading, bool resetX, bool resetY, int samples) {
         if (i > 0) pros::delay(35);
         double x, y;
         bool hasX, hasY;
-        wallEstimate(x, hasX, y, hasY);
+        wallEstimate(x, hasX, y, hasY, false, skipSensor);
         if (hasX) xSum += x, xCount++;
         if (hasY) ySum += y, yCount++;
     }
